@@ -28,8 +28,8 @@ class Controller(FloatLayout):
         pass
 
 class FlightStrip(Button):
-    def __init__(self, scrollview, app, id):
-        self.scrollview = scrollview
+    def __init__(self, index, app, id):
+        self.scrollview_index = index
         self.top_string = None
         self.note_string = ""
         self.alt_string = ""
@@ -39,6 +39,19 @@ class FlightStrip(Button):
 
     def do_click(self):
         controllerapp.dialog.show_custom_dialog(self.app, self.id)
+
+    def update_strip_text(self):
+        self.text = self.top_string + "\n" + self.alt_string + "\n" + self.note_string
+
+    def get_scrollview(self):
+        scrollbox_name = "scroll_%d" % self.scrollview_index
+        return self.app.controller.ids[scrollbox_name].children[0]
+
+    def unrender(self):
+        self.get_scrollview().remove_widget(self)
+
+    def render(self):
+        self.get_scrollview().add_widget(self, index=100)
 
 class ControllerApp(MDApp):
     def __init__(self, read_thread):
@@ -57,48 +70,61 @@ class ControllerApp(MDApp):
         return self.controller
 
     @mainthread
-    def add_flight(self, id, bbox):
+    def update_strip(self, id, bbox_index: int):  # XXX misnamed
+        move = False
+
         if id in self.strips:
-            print("warning: flight already on gui %s" % id)
-            return
-        #print(inspect.getmembers(sv, predicate=inspect.ismethod))
-        print("**** add_flight %s %s" % (id, str(bbox)))
+            strip = self.strips[id]
+            if strip.scrollview_index != bbox_index:
+                strip.unrender()
+                dbg("bbox update")
+                strip.scrollview_index = bbox_index
+                move = True
+            else:
+                return
+        else:
+            dbg("new flightstrip %s" % id)
+            strip = FlightStrip(bbox_index, self, id)
+            self.strips[id] = strip
 
-        scrollbox_name = "scroll_%d" % bbox.index
-        scrollview = self.controller.ids[scrollbox_name].children[0]
-        new_strip = FlightStrip(scrollview, self, id)
+        if not move:
+            self.set_strip_color(id, (1,1,1))
+            Clock.schedule_once(lambda dt: self.set_strip_color(id, (.5,.5,.5)), 5)
 
-        self.controller.ids[scrollbox_name].children[0].add_widget(new_strip, index=100)
-        new_strip.text = new_strip.top_string =  "%s %s" % (id, bbox.name)
-
-        self.strips[id] = new_strip
-
+        strip.render()
+        strip.text = strip.top_string =  id
+        strip.update_strip_text()
 
     @mainthread
-    def remove_flight(self, id, index):
-        strip = self.strips[id]
+    def remove_strip(self, id, index):
+        try:
+            strip = self.strips[id]
+        except:
+            return
         print("removing flight %s" % id)
-        scrollview = strip.scrollview
-        scrollview.remove_widget(strip)
+        strip.unrender()
         del self.strips[id]
 
     @mainthread
-    def update_flight(self, id, altstr, alt):
-        strip = self.strips[id]
+    def update_strip_alt(self, id, altstr, alt):
+        try:
+            strip = self.strips[id]
+        except:
+            return
         strip.alt_string = altstr + " " + str(alt)
-        self.update_strip_text(strip)
+        strip.update_strip_text()
 
     @mainthread
-    def annotate_flight(self, id, note):
-        strip = self.strips[id]
+    def annotate_strip(self, id, note):
+        try:
+            strip = self.strips[id]
+        except:
+            return
         strip.note_string = note
-        self.update_strip_text(strip)
-
-    def update_strip_text(self, strip):
-        strip.text = strip.top_string + "\n" + strip.alt_string + "\n" + strip.note_string
+        strip.update_strip_text()
 
     @mainthread
-    def set_flight_color(self, id, color):
+    def set_strip_color(self, id, color):
         try:
             strip = self.strips[id]
         except:
@@ -135,8 +161,7 @@ if __name__ == '__main__':
 
     listen = aio.setup()
 
-    test(lambda: Clock.schedule_once(start_reader, 2))
-    test(lambda: Clock.schedule_once(aio.sixs_test, 15))
+    Clock.schedule_once(start_reader, 2)
     dbg("Scheduling complete")
 
     read_thread = threading.Thread(target=procline_loop)

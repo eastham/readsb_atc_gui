@@ -45,5 +45,5 @@ class Dialog:
     def get_data(self, instance_btn, content_cls):
         textfield = content_cls.ids.pin
         value = textfield._get_text()
-        self.app.annotate_flight(self.id, value)
+        self.app.annotate_strip(self.id, value)
         self.close_dialog(instance_btn)

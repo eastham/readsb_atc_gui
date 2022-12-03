@@ -4,15 +4,17 @@
 # write to disk hourly, clear everything more than 5 min old
 
 # makerow: return appropriate dict to add
+import dataclasses
 from dataclasses import dataclass, field
 import socket
-import dataclasses
 from typing import Optional
 import threading
 from kivy.clock import Clock
 from functools import partial
 import statistics
-from dbg import dbg
+from dbg import dbg, test
+
+EXPIRE_SECS = 15
 
 @dataclass
 class Location:
@@ -115,13 +117,10 @@ class Flights:
 
         bbox_index = self.bboxes.contains(loc.lat, loc.lon, loc.track, loc.alt_baro)
 
-        if flight.bbox_index != bbox_index: # new or change
-            if bbox_index >= 0:
-                flight.bbox_index = bbox_index
-                if gui_app:
-                    gui_app.add_flight(flight.flight, self.bboxes.boxes[bbox_index])
-                    gui_app.set_flight_color(flight.flight, (1,1,1))
-                    Clock.schedule_once(lambda dt: gui_app.set_flight_color(flight.flight, (.5,.5,.5)), 5)
+        if bbox_index >= 0:
+            flight.bbox_index = bbox_index
+            if gui_app:
+                gui_app.update_strip(flight.flight, bbox_index)
 
         if flight.bbox_index >= 0:  # rendered
             altchange = flight.track_alt(loc.alt_baro)
@@ -131,7 +130,7 @@ class Flights:
             if altchange < 0:
                 altchangestr = "v"
 
-            if gui_app: gui_app.update_flight(flight.flight, altchangestr, loc.alt_baro)
+            if gui_app: gui_app.update_strip_alt(flight.flight, altchangestr, loc.alt_baro)
 
         flight.lastloc = loc
 
@@ -143,10 +142,10 @@ class Flights:
         self.lock.acquire()
         for f in list(self.dict):
 
-            if (time.time() - self.dict[f].lastloc.now > 5):
+            if (time.time() - self.dict[f].lastloc.now > EXPIRE_SECS):
                 print("expiring flight %s" % f)
                 if gui_app and self.dict[f].bbox_index >= 0:
-                    gui_app.remove_flight(f, self.dict[f].bbox_index)
+                    gui_app.remove_strip(f, self.dict[f].bbox_index)
                 del self.dict[f]
 
         self.lock.release()
@@ -167,19 +166,6 @@ class Flights:
         self.lock.release()
 
         return matrix
-# "flights" table -- generated from locations row with no more than 5 min break
-# id / last-seen-time / imputed optype / human-entered notes / [pilot data inc notes] /
-
-# "active flights" table -- derived from flights that have been seen past 5 min
-# sorted by last seen time
-
-# "inactive flights" table -- moved here from "active flights"
-# pulling in any annotations added by AIO
-# pushing out to appsheet via api when moved
-
-# non-adsb flights: manually add to active flights sheet?
-
-# render active flights table
 
 import pprint
 import socket
@@ -189,8 +175,6 @@ import time
 from bboxes import Bboxes
 
 pp = pprint.PrettyPrinter(indent=4)
-
-
 
 class TCPConnection:
     def __init__(self, sock=None):
@@ -221,7 +205,6 @@ gui_app = None
 
 
 def abortcb(signum, frame):
-    flights.dump()
     exit(1)
 
 def setup():
@@ -232,7 +215,34 @@ def setup():
     dbg("AIO setup done")
     return listen
 
-procline_test_first = True
+boot_time = time.time()
+last_uptime = 0
+
+def test_insert(flight):
+    global last_uptime
+    uptime = time.time() - boot_time
+
+    if uptime > 5 and last_uptime < 5:
+        dbg("--- Test update 1")
+        flights.add_location(Location(flight="**test 1**", now=time.time(), track=0, alt_baro=1000, lat=37.395647,lon=-121.954186), gui_app)
+        flights.add_location(Location(flight="**test 2**", now=time.time(), track=0, alt_baro=1000, lat=37.395647,lon=-121.954186), gui_app)
+
+        flights.add_location(Location(flight="**test 1**", now=time.time(), track=0, alt_baro=1500, lat=36.395647,lon=-121.954186), gui_app)
+        flights.add_location(Location(flight="**test 2**", now=time.time(), track=0, alt_baro=1600, lat=36.395647,lon=-121.954186), gui_app)
+        pass
+
+    if uptime > 10 and last_uptime < 10:
+        dbg("--- Test update 2")
+        flights.add_location(Location(flight="**test 1**", now=time.time(), track=0, alt_baro=1500, lat=36.395647,lon=-121.954186), gui_app)
+        flights.add_location(Location(flight="**test 1**", now=time.time(), track=0, alt_baro=1600, lat=36.395647,lon=-121.954186), gui_app)
+        flights.add_location(Location(flight="**test 2**", now=time.time(), track=0, alt_baro=1000, lat=37.395647,lon=-121.954186), gui_app)
+
+    if uptime > 15 and last_uptime < 15:
+        # PAO
+        dbg("--- Test update 3")
+        flights.add_location(Location(flight="**test 2**", now=time.time(), track=10, alt_baro=1000, lat=37.461671,lon=-122.121137), gui_app)
+
+    last_uptime = uptime
 
 def procline(listen, app):
     global gui_app
@@ -240,24 +250,13 @@ def procline(listen, app):
     line = listen.readline()
     # print(line)
     jsondict = json.loads(line)
-    #pp.pprint(jsondict)
+    # pp.pprint(jsondict)
 
     loc = Location.from_dict(jsondict)
     locations.add_location(loc)
     flight = flights.add_location(loc, gui_app)
-    global procline_test_first
-    if procline_test_first:
-        procline_test_first = False
-        flights.add_location(Location(flight="**test 1**", now=time.time(), track=0, alt_baro=1000, lat=37.395647,lon=-121.954186), gui_app)
-        flights.add_location(Location(flight="**test 2**", now=time.time(), track=0, alt_baro=1000, lat=37.395647,lon=-121.954186), gui_app)
 
-        flights.add_location(Location(flight="**test 1**", now=time.time(), track=0, alt_baro=1500, lat=36.395647,lon=-121.954186), gui_app)
-        flights.add_location(Location(flight="**test 1**", now=time.time(), track=0, alt_baro=1600, lat=36.395647,lon=-121.954186), gui_app)
-
-def sixs_test(dt):
-    flights.add_location(Location(flight="**test 1**", now=time.time(), track=0, alt_baro=1500, lat=36.395647,lon=-121.954186), gui_app)
-    flights.add_location(Location(flight="**test 1**", now=time.time(), track=0, alt_baro=1600, lat=36.395647,lon=-121.954186), gui_app)
-    flights.add_location(Location(flight="**test 2**", now=time.time(), track=0, alt_baro=1000, lat=37.395647,lon=-121.954186), gui_app)
+    test(lambda: test_insert(flight))
 
 def expire_old_flights(gui_app):
     flights.expire_old(gui_app)
