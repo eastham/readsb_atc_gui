@@ -95,7 +95,6 @@ class Flight:
 class Flights:
     """generated from locations row with no more than 5 min break"""
     def __init__(self, bboxes):
-        # self.df = pd.DataFrame(columns=[f.name for f in dataclasses.fields(Flight)])
         self.dict = {}      # dict of Flights
         self.bboxes = bboxes
         self.lock = threading.Lock()
@@ -242,7 +241,7 @@ def procline(listen, app):
     # print(line)
     jsondict = json.loads(line)
     #pp.pprint(jsondict)
-    
+
     loc = Location.from_dict(jsondict)
     locations.add_location(loc)
     flight = flights.add_location(loc, gui_app)

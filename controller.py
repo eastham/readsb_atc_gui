@@ -1,5 +1,8 @@
 import kivy
 from kivy.config import Config
+Config.set('graphics', 'width', '600')
+Config.set('graphics', 'height', '800')
+
 from kivy.clock import Clock, mainthread
 from kivymd.app import MDApp
 import inspect
@@ -35,7 +38,7 @@ class FlightStrip(Button):
         super().__init__()
 
     def do_click(self):
-        controllerapp.dialog.show_custom_dialog(app, id)
+        controllerapp.dialog.show_custom_dialog(self.app, self.id)
 
 class ControllerApp(MDApp):
     def __init__(self, read_thread):
@@ -132,15 +135,13 @@ if __name__ == '__main__':
 
     listen = aio.setup()
 
-    Config.set('graphics', 'width', '400')
-    Config.set('graphics', 'height', '800')
-
-    test(lambda: Clock.schedule_once(start_reader, 5))
+    test(lambda: Clock.schedule_once(start_reader, 2))
     test(lambda: Clock.schedule_once(aio.sixs_test, 15))
     dbg("Scheduling complete")
 
     read_thread = threading.Thread(target=procline_loop)
     controllerapp = ControllerApp(read_thread)
+
 
     dbg("Starting main loop")
     controllerapp.run()

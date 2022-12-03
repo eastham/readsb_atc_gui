@@ -23,9 +23,13 @@ class Dialog:
     cdialog = None
 
     def __init__(self):
+        self.app = None
+        self.id = None
         Builder.load_string(kv)
 
     def show_custom_dialog(self, app, id):
+        self.app = app
+        self.id = id
         content_cls = Content()
         self.cdialog = MDDialog(title='Enter Code', content_cls=content_cls,
             type="custom", buttons = [
@@ -41,6 +45,5 @@ class Dialog:
     def get_data(self, instance_btn, content_cls):
         textfield = content_cls.ids.pin
         value = textfield._get_text()
-        print("got dialog data " + value)
-
+        self.app.annotate_flight(self.id, value)
         self.close_dialog(instance_btn)
