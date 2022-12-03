@@ -1,48 +1,37 @@
-from kivmd.app import MDApp
 from kivymd.uix.floatlayout import MDFloatLayout
 from kivymd.uix.dialog import MDDialog
-from kivymd.uix.button import MDFlatButton, MDRaisedButtom
-from kivy.lang.builder impor Builder
-from kivy.toast import toast
-
+from kivymd.uix.button import MDFlatButton, MDRaisedButton
+from kivy.lang.builder import Builder
+from kivy.uix.boxlayout import BoxLayout
 
 kv = '''
-MDBoxLayout:
-    orientation : 'vertical'
-
-    MDFlatbutton:
-        text : 'Dialog'
-        pos_hint : {'center_x':.5'}
-        on_release : app.show_custom_dialog()
-
 <Content>:
+    orientation: "vertical"
+    spacing: "12dp"
+    size_hint_y: None
+
     MDTextField:
         id : pin
-        pos_hint : {'center_x':.5,'center_y':.5}
 
 '''
 
-class Content(MDFloatLayout):
+class Content(BoxLayout):
     pass
 
 
-class InputDialogApp(MDApp):
+class Dialog:
     cdialog = None
 
-    def build(self):
-        return Builder.load_string(kv)
+    def __init__(self):
+        Builder.load_string(kv)
 
     def show_custom_dialog(self):
         content_cls = Content()
-        self.cdialog = MDDialog(title='Enter Pin',
-                 content_cls=content_cls,
-                type='custom')
-        self.cdialog.buttons = [
-
+        self.cdialog = MDDialog(title='Enter Code', content_cls=content_cls,
+            type="custom", buttons = [
                 MDFlatButton(text="Cancel",on_release=self.close_dialog),
-
-               MDRaisedButton(text="Ok",on_release=lambda x:self.get_data(x,content_cls))
-                ]
+                MDRaisedButton(text="Ok",on_release=lambda x:self.get_data(x,content_cls))
+            ])
         self.cdialog.open()
 
     def close_dialog(self, instance):
@@ -52,10 +41,6 @@ class InputDialogApp(MDApp):
     def get_data(self, instance_btn, content_cls):
         textfield = content_cls.ids.pin
         value = textfield._get_text()
-        # do stuffs here
-        toast(value)
+        print("got dialog data " + value)
 
         self.close_dialog(instance_btn)
-
-if __name__ == '__main__':
-    InputDialogApp().run()
