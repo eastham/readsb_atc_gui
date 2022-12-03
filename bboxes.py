@@ -58,8 +58,8 @@ class Bboxes:
 
     def hdg_contains(self, hdg, start, end):
         if end < start:
-            return hdg > start or hdg < end
-        return hdg > start and hdg < end
+            return hdg >= start or hdg <= end
+        return hdg >= start and hdg <= end
 
     def contains(self, lat, long, hdg, alt):
         "returns index of first matching bounding box, otherwise -1 if not found"

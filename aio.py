@@ -18,12 +18,13 @@ EXPIRE_SECS = 15
 
 @dataclass
 class Location:
-    """A single aircraft position"""
+    """A single aircraft position update"""
     lat: float
     lon: float
     alt_baro: int
     now: Optional[float]
     flight: str
+    gs: Optional[float]
     track: float = 0.
 
     def __post_init__(self):
@@ -94,6 +95,15 @@ class Flight:
         if alt < avg: return -1
         return 0
 
+    def get_alt_change_str(self, alt):
+        altchange = self.track_alt(alt)
+        altchangestr = " "
+        if altchange > 0:
+            altchangestr = "^"
+        if altchange < 0:
+            altchangestr = "v"
+        return altchangestr
+
 class Flights:
     """generated from locations row with no more than 5 min break"""
     def __init__(self, bboxes):
@@ -116,24 +126,18 @@ class Flights:
             print("new flight %s " % flightname)
 
         bbox_index = self.bboxes.contains(loc.lat, loc.lon, loc.track, loc.alt_baro)
+        if bbox_index < 0:
+            self.lock.release()
+            flight.lastloc = loc
+            return
+        flight.bbox_index = bbox_index
 
-        if bbox_index >= 0:
-            flight.bbox_index = bbox_index
-            if gui_app:
-                gui_app.update_strip(flight.flight, bbox_index)
-
-        if flight.bbox_index >= 0:  # rendered
-            altchange = flight.track_alt(loc.alt_baro)
-            altchangestr = " "
-            if altchange > 0:
-                altchangestr = "^"
-            if altchange < 0:
-                altchangestr = "v"
-
-            if gui_app: gui_app.update_strip_alt(flight.flight, altchangestr, loc.alt_baro)
+        if gui_app:
+            gui_app.update_strip(flight.flight, bbox_index)
+            altchangestr = flight.get_alt_change_str(loc.alt_baro)
+            gui_app.update_strip_alt(flight.flight, altchangestr, loc.alt_baro, loc.gs)
 
         flight.lastloc = loc
-
         self.lock.release()
 
         return flight
@@ -224,23 +228,23 @@ def test_insert(flight):
 
     if uptime > 5 and last_uptime < 5:
         dbg("--- Test update 1")
-        flights.add_location(Location(flight="**test 1**", now=time.time(), track=0, alt_baro=1000, lat=37.395647,lon=-121.954186), gui_app)
-        flights.add_location(Location(flight="**test 2**", now=time.time(), track=0, alt_baro=1000, lat=37.395647,lon=-121.954186), gui_app)
+        flights.add_location(Location(flight="**test 1**", now=time.time(), track=0, gs=100, alt_baro=1000, lat=37.395647,lon=-121.954186), gui_app)
+        flights.add_location(Location(flight="**test 2**", now=time.time(), track=0, gs=100, alt_baro=1000, lat=37.395647,lon=-121.954186), gui_app)
 
-        flights.add_location(Location(flight="**test 1**", now=time.time(), track=0, alt_baro=1500, lat=36.395647,lon=-121.954186), gui_app)
-        flights.add_location(Location(flight="**test 2**", now=time.time(), track=0, alt_baro=1600, lat=36.395647,lon=-121.954186), gui_app)
+        flights.add_location(Location(flight="**test 1**", now=time.time(), track=0, gs=100, alt_baro=1500, lat=36.395647,lon=-121.954186), gui_app)
+        flights.add_location(Location(flight="**test 2**", now=time.time(), track=0, gs=100, alt_baro=1600, lat=36.395647,lon=-121.954186), gui_app)
         pass
 
     if uptime > 10 and last_uptime < 10:
         dbg("--- Test update 2")
-        flights.add_location(Location(flight="**test 1**", now=time.time(), track=0, alt_baro=1500, lat=36.395647,lon=-121.954186), gui_app)
-        flights.add_location(Location(flight="**test 1**", now=time.time(), track=0, alt_baro=1600, lat=36.395647,lon=-121.954186), gui_app)
-        flights.add_location(Location(flight="**test 2**", now=time.time(), track=0, alt_baro=1000, lat=37.395647,lon=-121.954186), gui_app)
+        flights.add_location(Location(flight="**test 1**", now=time.time(), track=0, gs=100, alt_baro=1500, lat=36.395647,lon=-121.954186), gui_app)
+        flights.add_location(Location(flight="**test 1**", now=time.time(), track=0, gs=100, alt_baro=1600, lat=36.395647,lon=-121.954186), gui_app)
+        flights.add_location(Location(flight="**test 2**", now=time.time(), track=0, gs=100, alt_baro=1000, lat=37.395647,lon=-121.954186), gui_app)
 
     if uptime > 15 and last_uptime < 15:
         # PAO
         dbg("--- Test update 3")
-        flights.add_location(Location(flight="**test 2**", now=time.time(), track=10, alt_baro=1000, lat=37.461671,lon=-122.121137), gui_app)
+        flights.add_location(Location(flight="**test 2**", now=time.time(), track=0, gs=100, alt_baro=1000, lat=37.461671,lon=-122.121137), gui_app)
 
     last_uptime = uptime
 

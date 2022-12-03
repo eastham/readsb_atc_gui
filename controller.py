@@ -106,12 +106,12 @@ class ControllerApp(MDApp):
         del self.strips[id]
 
     @mainthread
-    def update_strip_alt(self, id, altstr, alt):
+    def update_strip_alt(self, id, altstr, alt, gs):
         try:
             strip = self.strips[id]
         except:
             return
-        strip.alt_string = altstr + " " + str(alt)
+        strip.alt_string = altstr + " " + str(alt) + " " + str(int(gs))
         strip.update_strip_text()
 
     @mainthread
