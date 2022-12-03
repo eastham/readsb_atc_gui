@@ -14,33 +14,43 @@ import aio
 import threading
 import time
 from dialog import Dialog
+from dbg import dbg, test
+
 listen = None
 controllerapp = None
 
 class Controller(FloatLayout):
     def __init__(self):
+        super().__init__()
         pass
 
 class FlightStrip(Button):
-    def __init__(self, scrollview):
+    def __init__(self, scrollview, app, id):
         self.scrollview = scrollview
         self.top_string = None
+        self.note_string = ""
+        self.alt_string = ""
+        self.id = id
+        self.app = app
         super().__init__()
 
     def do_click(self):
-        controllerapp.dialog.show_custom_dialog()
+        controllerapp.dialog.show_custom_dialog(app, id)
 
 class ControllerApp(MDApp):
     def __init__(self, read_thread):
+        dbg("controller init")
         self.strips = {}    # dict of FlightStrips by id
         self.read_thread = read_thread
         self.dialog = None
         super().__init__()
 
     def build(self):
+        dbg("controller build")
         self.controller = Controller()
         self.dialog = Dialog()
         self.theme_cls.theme_style="Dark"
+        dbg("controller build done")
         return self.controller
 
     @mainthread
@@ -53,7 +63,7 @@ class ControllerApp(MDApp):
 
         scrollbox_name = "scroll_%d" % bbox.index
         scrollview = self.controller.ids[scrollbox_name].children[0]
-        new_strip = FlightStrip(scrollview)
+        new_strip = FlightStrip(scrollview, self, id)
 
         self.controller.ids[scrollbox_name].children[0].add_widget(new_strip, index=100)
         new_strip.text = new_strip.top_string =  "%s %s" % (id, bbox.name)
@@ -72,7 +82,17 @@ class ControllerApp(MDApp):
     @mainthread
     def update_flight(self, id, altstr, alt):
         strip = self.strips[id]
-        strip.text = strip.top_string + "\n" + altstr + " " + str(alt)
+        strip.alt_string = altstr + " " + str(alt)
+        self.update_strip_text(strip)
+
+    @mainthread
+    def annotate_flight(self, id, note):
+        strip = self.strips[id]
+        strip.note_string = note
+        self.update_strip_text(strip)
+
+    def update_strip_text(self, strip):
+        strip.text = strip.top_string + "\n" + strip.alt_string + "\n" + strip.note_string
 
     @mainthread
     def set_flight_color(self, id, color):
@@ -112,14 +132,15 @@ if __name__ == '__main__':
 
     listen = aio.setup()
 
-    Config.set('graphics', 'width', '500')
+    Config.set('graphics', 'width', '400')
     Config.set('graphics', 'height', '800')
 
-    # XXX should be separate thread
-#    event = Clock.schedule_interval(read_adsb_callback, 1 / 100.)
-#    event = Clock.schedule_interval(expire_old_flights_cb, 1)
-    event = Clock.schedule_once(start_reader, 3)
-    event = Clock.schedule_once(aio.sixs_test, 15)
+    test(lambda: Clock.schedule_once(start_reader, 5))
+    test(lambda: Clock.schedule_once(aio.sixs_test, 15))
+    dbg("Scheduling complete")
+
     read_thread = threading.Thread(target=procline_loop)
     controllerapp = ControllerApp(read_thread)
+
+    dbg("Starting main loop")
     controllerapp.run()

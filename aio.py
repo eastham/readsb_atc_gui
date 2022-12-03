@@ -12,6 +12,7 @@ import threading
 from kivy.clock import Clock
 from functools import partial
 import statistics
+from dbg import dbg
 
 @dataclass
 class Location:
@@ -229,6 +230,7 @@ def setup():
     listen = TCPConnection()
     listen.connect('192.168.87.60',30666)
     lastupdate = 0
+    dbg("AIO setup done")
     return listen
 
 procline_test_first = True
@@ -239,7 +241,8 @@ def procline(listen, app):
     line = listen.readline()
     # print(line)
     jsondict = json.loads(line)
-    # pp.pprint(jsondict)
+    #pp.pprint(jsondict)
+    
     loc = Location.from_dict(jsondict)
     locations.add_location(loc)
     flight = flights.add_location(loc, gui_app)
@@ -251,12 +254,6 @@ def procline(listen, app):
 
         flights.add_location(Location(flight="**test 1**", now=time.time(), track=0, alt_baro=1500, lat=36.395647,lon=-121.954186), gui_app)
         flights.add_location(Location(flight="**test 1**", now=time.time(), track=0, alt_baro=1600, lat=36.395647,lon=-121.954186), gui_app)
-
-    #now = time.time()
-    #if (now - lastupdate > 5):
-        # update_sheet()
-        # lastupdate = now
-    # ac[0], tp['latitude'], tp['longitude'], tp['height'], tp['time']
 
 def sixs_test(dt):
     flights.add_location(Location(flight="**test 1**", now=time.time(), track=0, alt_baro=1500, lat=36.395647,lon=-121.954186), gui_app)

@@ -25,7 +25,7 @@ class Dialog:
     def __init__(self):
         Builder.load_string(kv)
 
-    def show_custom_dialog(self):
+    def show_custom_dialog(self, app, id):
         content_cls = Content()
         self.cdialog = MDDialog(title='Enter Code', content_cls=content_cls,
             type="custom", buttons = [
