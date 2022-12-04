@@ -13,7 +13,7 @@ import signal
 import time
 
 from bboxes import Bboxes
-from dbg import dbg, test
+from dbg import dbg, test, set_dbg_level
 from flight import Flight, Location
 from test import test_insert
 
@@ -36,19 +36,19 @@ class Flights:
         if flight_id in self.dict:
             flight = self.dict[flight_id]
         else:
-            flight = self.dict[flight_id] = Flight(flight_id, loc, loc)
+            flight = self.dict[flight_id] = Flight(flight_id, loc, loc, self.bboxes)
             flight.firstloc = loc
             print("new flight %s " % flight_id)
 
-        bbox_index = self.bboxes.contains(loc.lat, loc.lon, loc.track, loc.alt_baro)
-        flight.bbox_index = bbox_index
+        flight.update_inside_bboxes(self.bboxes, loc)
+        flight.bbox_index = flight.inside_bboxes[0] # XXX hack
 
         if gui_app:
             # XXX just pass in flight to callback registered earlier
-            gui_app.update_strip(flight.flight_id, bbox_index)
+            gui_app.update_strip(flight.flight_id, flight.bbox_index)
             altchangestr = flight.get_alt_change_str(loc.alt_baro)
             gui_app.update_strip_alt(flight.flight_id, altchangestr, loc.alt_baro, loc.gs)
-
+            gui_app.update_strip_loc_string(flight, self.bboxes)
         flight.lastloc = loc
         self.lock.release()
 
@@ -100,15 +100,16 @@ def abortcb(signum, frame):
     exit(1)
 
 
-def setup():
+def setup(ipaddr, port):
+    dbg("Connecting to %s:%d" % (ipaddr,int(port)))
     signal.signal(signal.SIGINT, abortcb)
     listen = TCPConnection()
-    listen.connect('192.168.87.60',30666)
+    listen.connect(ipaddr, int(port)) # '192.168.87.60',30666)
     lastupdate = 0
-    dbg("AIO setup done")
+    dbg("Setup done")
     return listen
 
-def sock_read(flights, listen, app):
+def flight_update_read(flights, listen, app):
     line = listen.readline()
     # print(line)
     jsondict = json.loads(line)
@@ -117,14 +118,31 @@ def sock_read(flights, listen, app):
     loc_update = Location.from_dict(jsondict)
     flight = flights.add_location(loc_update, app)
 
-def flight_read_loop(listen, controllerapp): # need two callbacks, one to add one to remove
+def flight_read_loop(listen, controllerapp, bbox_list): # need two callbacks, one to add one to remove
     last_expire = time.time()
-    bboxes = Bboxes("sjc.kml") # move to controller?
-    flights = Flights(bboxes)
+    flights = Flights(bbox_list)
 
     while True:
-        sock_read(flights, listen, controllerapp)
+        flight_update_read(flights, listen, controllerapp)
         if time.time() - last_expire > 1:
             flights.expire_old(controllerapp)
             last_expire = time.time()
         test(lambda: test_insert(flights, controllerapp))
+
+if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(description="match flights against kml bounding boxes")
+    parser.add_argument("-v", "--verbose", action="store_true")
+    parser.add_argument('file', nargs='+', help="kml files to use")
+    parser.add_argument('--ipaddr', help="IP address to connect to", required=True)
+    parser.add_argument('--port', help="port to connect to", required=True)
+    args = parser.parse_args()
+
+    bboxes_list = []
+    if args.verbose: set_dbg_level(True)
+    for f in args.file:
+        bboxes_list.append(Bboxes(f))
+
+    listen = setup(args.ipaddr, args.port)
+    flight_read_loop(listen, None, bboxes_list)

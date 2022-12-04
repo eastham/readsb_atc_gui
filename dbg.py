@@ -1,8 +1,11 @@
-DEBUG = True
+debug_level = True
 TEST = True
 
+def set_dbg_level(l):
+    debug_level = l
+
 def dbg(*args, **kvargs):
-    if DEBUG:
+    if debug_level:
         print(*args, **kvargs)
 
 def test(f):

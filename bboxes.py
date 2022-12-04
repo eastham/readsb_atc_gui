@@ -25,7 +25,7 @@ class Bboxes:
         self.boxes = []    # list of Bbox'es
 
         with open(fn, 'rt', encoding="utf-8") as myfile:
-          doc=myfile.read()
+          doc = myfile.read()
         k = kml.KML()
         k.from_string(doc.encode('utf-8'))
         features = list(k.features())
@@ -37,7 +37,8 @@ class Bboxes:
           if isinstance(feature, kml.Placemark):
             #print("got placemark " + feature.to_string())
             #print("got placemark " + feature.name)
-            re_result = re.search(r"([\w\d\s]+):(\d+)-(\d+) (\d+)-(\d+)", feature.name)
+            re_result = re.search(r"([\w\d\s]+):\s*(\d+)-(\d+) (\d+)-(\d+)", feature.name)
+            if not re_result: raise ValueError("kml parse error: " + feature.name)
             name = re_result.group(1)
             minalt = int(re_result.group(2))
             maxalt = int(re_result.group(3))

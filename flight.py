@@ -1,8 +1,9 @@
 import dataclasses
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, InitVar
 from typing import Optional
 import time
 import statistics
+from dbg import dbg
 
 @dataclass
 class Location:
@@ -11,7 +12,7 @@ class Location:
     lon: float
     alt_baro: int
     now: Optional[float]
-    flight: Optional[str]  # the flight id 
+    flight: Optional[str]  # the flight id
     gs: Optional[float]
     track: float = 0.
 
@@ -47,10 +48,14 @@ class Flight:
     flight_id: str
     firstloc: Location
     lastloc: Location
+    bbox_list: InitVar[list]
     bbox_index: int = -1
-    alt_list: list = field(default_factory=list)
-
+    alt_list: list = field(default_factory=list)  # last n altitudes we've seen
+    inside_bboxes: list = field(default_factory=list)  # most recent bboxes we've been inside, by file
     ALT_TRACK_ENTRIES = 5
+
+    def __post_init__(self, bbox_list):
+        self.inside_bboxes = [-1] * len(bbox_list)
 
     def track_alt(self, alt):
         avg = alt
@@ -73,3 +78,10 @@ class Flight:
         if altchange < 0:
             altchangestr = "v"
         return altchangestr
+
+    def update_inside_bboxes(self, bbox_list, loc):
+        for i, bbox in enumerate(bbox_list):
+            new_bbox = bbox_list[i].contains(loc.lat, loc.lon, loc.track, loc.alt_baro)
+            if self.inside_bboxes[i] != new_bbox:
+                dbg("%s now inside %s" % (self.flight_id, bbox_list[i].boxes[new_bbox].name))
+                self.inside_bboxes[i] = new_bbox

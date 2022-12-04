@@ -15,6 +15,8 @@ import threading
 import time
 from dialog import Dialog
 from dbg import dbg, test
+from bboxes import Bboxes
+from flight import Flight
 
 listen = None
 controllerapp = None
@@ -30,6 +32,7 @@ class FlightStrip(Button):
         self.top_string = None
         self.note_string = ""
         self.alt_string = ""
+        self.loc_string = ""
         self.id = id
         self.app = app
         super().__init__()
@@ -38,7 +41,7 @@ class FlightStrip(Button):
         controllerapp.dialog.show_custom_dialog(self.app, self.id)
 
     def update_strip_text(self):
-        self.text = self.top_string + "\n" + self.alt_string + "\n" + self.note_string
+        self.text = self.top_string + " " + self.loc_string + "\n" + self.alt_string + "\n" + self.note_string
 
     def get_scrollview(self):
         scrollbox_name = "scroll_%d" % self.scrollview_index
@@ -69,7 +72,7 @@ class ControllerApp(MDApp):
         return self.controller
 
     @mainthread
-    def update_strip(self, id, bbox_index: int):  # XXX misnamed
+    def update_strip(self, id, bbox_index: int):  # XXX misnamed, args redundant, just use flight?
         move = False
 
         if id in self.strips:
@@ -84,7 +87,7 @@ class ControllerApp(MDApp):
                 strip.scrollview_index = bbox_index
                 move = True
             else:
-                return
+                return # already rendered, no change in scrollview
         else:
             if bbox_index < 0:
                 return
@@ -109,6 +112,17 @@ class ControllerApp(MDApp):
         print("removing flight %s" % id)
         strip.unrender()
         del self.strips[id]
+
+    @mainthread
+    def update_strip_loc_string(self, flight, bbox_list):
+        try:
+            strip = self.strips[flight.flight_id]
+        except:
+            return
+        subtitle_bbox = bbox_list[1]
+
+        if flight.inside_bboxes[1] > 0:
+            strip.loc_string = subtitle_bbox.boxes[flight.inside_bboxes[1]].name
 
     @mainthread
     def update_strip_alt(self, id, altstr, alt, gs):
@@ -149,17 +163,32 @@ def start_reader(dt):
     read_thread.start()  # XXX race cond, call start from init
 
 
-if __name__ == '__main__':
-    signal.signal(signal.SIGINT, handler)
 
-    listen_socket = aio.setup()
+
+if __name__ == '__main__':
+    import argparse
+
+    parser = argparse.ArgumentParser(description="match flights against kml bounding boxes")
+    parser.add_argument("-v", "--verbose", action="store_true")
+    parser.add_argument('file', nargs='+', help="kml files to use")
+    parser.add_argument('--ipaddr', help="IP address to connect to", required=True)
+    parser.add_argument('--port', help="port to connect to", required=True)
+    args = parser.parse_args()
+
+    bboxes_list = []
+    if args.verbose: set_dbg_level(True)
+    for f in args.file:
+        bboxes_list.append(Bboxes(f))
+
+    signal.signal(signal.SIGINT, handler)
+    listen_socket = aio.setup(args.ipaddr, args.port)
 
     Clock.schedule_once(start_reader, 2)
     dbg("Scheduling complete")
 
     controllerapp = ControllerApp(read_thread)
     read_thread = threading.Thread(target=aio.flight_read_loop,
-        args=[listen_socket, controllerapp])
+        args=[listen_socket, controllerapp, bboxes_list])
 
     dbg("Starting main loop")
     controllerapp.run()
