@@ -59,6 +59,8 @@ class ControllerApp(MDApp):
         self.strips = {}    # dict of FlightStrips by id
         self.read_thread = read_thread
         self.dialog = None
+        self.OMIT_INDEX = 3  # don't move to this index
+
         super().__init__()
 
     def build(self):
@@ -75,7 +77,11 @@ class ControllerApp(MDApp):
 
         if id in self.strips:
             strip = self.strips[id]
-            if strip.scrollview_index != bbox_index:
+
+            if bbox_index < 0:
+                bbox_index = strip.scrollview_index # don't move but continue to update
+
+            if strip.scrollview_index != bbox_index and bbox_index != self.OMIT_INDEX:
                 strip.unrender()
                 dbg("bbox update")
                 strip.scrollview_index = bbox_index
@@ -83,6 +89,8 @@ class ControllerApp(MDApp):
             else:
                 return
         else:
+            if bbox_index < 0:
+                return
             dbg("new flightstrip %s" % id)
             strip = FlightStrip(bbox_index, self, id)
             self.strips[id] = strip
@@ -133,14 +141,11 @@ class ControllerApp(MDApp):
 
 
 
-def read_adsb_callback(dt):
-    aio.procline(listen, controllerapp)
-
-def procline_loop():
+def sock_read_loop():
     last_expire = time.time()
 
     while True:
-        aio.procline(listen, controllerapp)
+        aio.sock_read(listen, controllerapp)
         if time.time() - last_expire > 1:
             aio.expire_old_flights(controllerapp)
             last_expire = time.time()
@@ -164,9 +169,8 @@ if __name__ == '__main__':
     Clock.schedule_once(start_reader, 2)
     dbg("Scheduling complete")
 
-    read_thread = threading.Thread(target=procline_loop)
+    read_thread = threading.Thread(target=sock_read_loop)
     controllerapp = ControllerApp(read_thread)
-
 
     dbg("Starting main loop")
     controllerapp.run()

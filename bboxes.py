@@ -57,9 +57,13 @@ class Bboxes:
               self.parse_placemarks(list(feature.features()))
 
     def hdg_contains(self, hdg, start, end):
-        if end < start:
-            return hdg >= start or hdg <= end
-        return hdg >= start and hdg <= end
+        try:
+            if end < start:
+                return hdg >= start or hdg <= end
+            return hdg >= start and hdg <= end
+        except:
+            dbg("hdg %d %d-%d" %(hdg,start,end))
+            exit(1)
 
     def contains(self, lat, long, hdg, alt):
         "returns index of first matching bounding box, otherwise -1 if not found"
