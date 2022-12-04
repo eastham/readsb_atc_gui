@@ -46,4 +46,5 @@ class Dialog:
         textfield = content_cls.ids.pin
         value = textfield._get_text()
         self.app.annotate_strip(self.id, value)
+        self.app.set_strip_color(self.id, (.4,.4,.4))
         self.close_dialog(instance_btn)

@@ -1,13 +1,10 @@
 import kivy
+kivy.require('1.0.5')
 from kivy.config import Config
 Config.set('graphics', 'width', '600')
 Config.set('graphics', 'height', '800')
-
 from kivy.clock import Clock, mainthread
 from kivymd.app import MDApp
-import inspect
-kivy.require('1.0.5')
-
 from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.button import Button
 from kivy.app import App
@@ -59,7 +56,7 @@ class ControllerApp(MDApp):
         self.strips = {}    # dict of FlightStrips by id
         self.read_thread = read_thread
         self.dialog = None
-        self.OMIT_INDEX = 3  # don't move to this index
+        self.OMIT_INDEX = 3  # don't move strips to this index
 
         super().__init__()
 
@@ -79,7 +76,7 @@ class ControllerApp(MDApp):
             strip = self.strips[id]
 
             if bbox_index < 0:
-                bbox_index = strip.scrollview_index # don't move but continue to update
+                bbox_index = strip.scrollview_index # don't move but continue to update indefinitely
 
             if strip.scrollview_index != bbox_index and bbox_index != self.OMIT_INDEX:
                 strip.unrender()
@@ -96,8 +93,8 @@ class ControllerApp(MDApp):
             self.strips[id] = strip
 
         if not move:
-            self.set_strip_color(id, (1,1,1))
-            Clock.schedule_once(lambda dt: self.set_strip_color(id, (.5,.5,.5)), 5)
+            self.set_strip_color(id, (1,.7,.7))
+            Clock.schedule_once(lambda dt: self.set_strip_color(id, (.8,.4,.4)), 5)
 
         strip.render()
         strip.text = strip.top_string =  id
@@ -141,15 +138,6 @@ class ControllerApp(MDApp):
 
 
 
-def sock_read_loop():
-    last_expire = time.time()
-
-    while True:
-        aio.sock_read(listen, controllerapp)
-        if time.time() - last_expire > 1:
-            aio.expire_old_flights(controllerapp)
-            last_expire = time.time()
-
 import signal
 
 def handler(signum, frame):
@@ -164,13 +152,14 @@ def start_reader(dt):
 if __name__ == '__main__':
     signal.signal(signal.SIGINT, handler)
 
-    listen = aio.setup()
+    listen_socket = aio.setup()
 
     Clock.schedule_once(start_reader, 2)
     dbg("Scheduling complete")
 
-    read_thread = threading.Thread(target=sock_read_loop)
     controllerapp = ControllerApp(read_thread)
+    read_thread = threading.Thread(target=aio.sock_read_loop,
+        args=[listen_socket, controllerapp])
 
     dbg("Starting main loop")
     controllerapp.run()

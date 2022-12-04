@@ -3,23 +3,29 @@
 # probably need to expire out in-ram locations over an hour old...
 # write to disk hourly, clear everything more than 5 min old
 
-# makerow: return appropriate dict to add
 import dataclasses
 import socket
 import threading
 from kivy.clock import Clock
 from functools import partial
+import pprint
+import json
+import signal
+import time
+
+from bboxes import Bboxes
 from dbg import dbg, test
 from flight import Flight, Location
 
-EXPIRE_SECS = 15
+pp = pprint.PrettyPrinter(indent=4)
 
 class Flights:
     """generated from locations row with no more than 5 min break"""
     def __init__(self, bboxes):
-        self.dict = {}      # dict of Flights
+        self.dict = {}      # dict of Flight by flight id
         self.bboxes = bboxes
         self.lock = threading.Lock()
+        self.EXPIRE_SECS = 15
 
     def add_location(self, loc: Location, gui_app):
         flightname = loc.flight
@@ -30,7 +36,6 @@ class Flights:
         if flightname in self.dict:
             flight = self.dict[flightname]
         else:
-            # XXX seems to be creating multiple in N/A case
             flight = self.dict[flightname] = Flight(flightname, loc, loc)
             flight.firstloc = loc
             print("new flight %s " % flightname)
@@ -51,7 +56,7 @@ class Flights:
     def expire_old(self, gui_app):
         self.lock.acquire()
         for f in list(self.dict):
-            if (time.time() - self.dict[f].lastloc.now > EXPIRE_SECS):
+            if (time.time() - self.dict[f].lastloc.now > self.EXPIRE_SECS):
                 print("expiring flight %s" % f)
                 if gui_app:
                     gui_app.remove_strip(f, self.dict[f].bbox_index)
@@ -76,14 +81,7 @@ class Flights:
 
         return matrix
 
-import pprint
-import socket
-import json
-import signal
-import time
-from bboxes import Bboxes
 
-pp = pprint.PrettyPrinter(indent=4)
 
 class TCPConnection:
     def __init__(self, sock=None):
@@ -103,17 +101,43 @@ class TCPConnection:
         self.f = self.sock.makefile()
 
     def readline(self):
-        #data = self.sock.recv(1024).decode("utf-8")
         data = self.f.readline()
         return data
-
-bboxes = Bboxes("sjc.kml")
-flights = Flights(bboxes)
-gui_app = None
 
 
 def abortcb(signum, frame):
     exit(1)
+
+boot_time = time.time()
+last_test_uptime = 0
+
+def test_insert(flights, app):
+    global last_test_uptime
+    uptime = time.time() - boot_time
+
+    if uptime >= 5 and last_test_uptime < 5:
+        dbg("--- Test update 1")
+        flights.add_location(Location(flight="**test 1**", now=time.time(), track=0, gs=100, alt_baro=1000, lat=37.395647,lon=-121.954186), app)
+        flights.add_location(Location(flight="**test 2**", now=time.time(), track=0, gs=100, alt_baro=1000, lat=37.395647,lon=-121.954186), app)
+        # default zone
+        flights.add_location(Location(flight="**test 1**", now=time.time(), track=0, gs=100, alt_baro=1500, lat=37.434824,lon=-122.185409), app)
+        # off map
+        flights.add_location(Location(flight="**test 2**", now=time.time(), track=0, gs=100, alt_baro=10600, lat=36.395647,lon=-121.954186), app)
+        pass
+
+    if uptime >= 10 and last_test_uptime < 10:
+        dbg("--- Test update 2")
+        flights.add_location(Location(flight="**test 1**", now=time.time(), track=0, gs=100, alt_baro=1500, lat=36.395647,lon=-121.954186), app)
+        flights.add_location(Location(flight="**test 1**", now=time.time(), track=0, gs=100, alt_baro=1600, lat=36.395647,lon=-121.954186), app)
+        flights.add_location(Location(flight="**test 2**", now=time.time(), track=0, gs=100, alt_baro=1000, lat=37.395647,lon=-121.954186), app)
+
+    if uptime >= 15 and last_test_uptime < 15:
+        # PAO
+        dbg("--- Test update 3")
+        flights.add_location(Location(flight="**test 2**", now=time.time(), track=0, gs=100, alt_baro=1000, lat=37.461671,lon=-122.121137), app)
+
+    last_test_uptime = uptime
+
 
 def setup():
     signal.signal(signal.SIGINT, abortcb)
@@ -123,55 +147,29 @@ def setup():
     dbg("AIO setup done")
     return listen
 
-boot_time = time.time()
-last_uptime = 0
-
-def test_insert(flight):
-    global last_uptime
-    uptime = time.time() - boot_time
-
-    if uptime > 5 and last_uptime < 5:
-        dbg("--- Test update 1")
-        flights.add_location(Location(flight="**test 1**", now=time.time(), track=0, gs=100, alt_baro=1000, lat=37.395647,lon=-121.954186), gui_app)
-        flights.add_location(Location(flight="**test 2**", now=time.time(), track=0, gs=100, alt_baro=1000, lat=37.395647,lon=-121.954186), gui_app)
-
-        # default zone
-        flights.add_location(Location(flight="**test 1**", now=time.time(), track=0, gs=100, alt_baro=1500, lat=37.434824,lon=-122.185409), gui_app)
-        # off map
-        flights.add_location(Location(flight="**test 2**", now=time.time(), track=0, gs=100, alt_baro=10600, lat=36.395647,lon=-121.954186), gui_app)
-        pass
-
-    if uptime > 10 and last_uptime < 10:
-        dbg("--- Test update 2")
-        flights.add_location(Location(flight="**test 1**", now=time.time(), track=0, gs=100, alt_baro=1500, lat=36.395647,lon=-121.954186), gui_app)
-        flights.add_location(Location(flight="**test 1**", now=time.time(), track=0, gs=100, alt_baro=1600, lat=36.395647,lon=-121.954186), gui_app)
-        flights.add_location(Location(flight="**test 2**", now=time.time(), track=0, gs=100, alt_baro=1000, lat=37.395647,lon=-121.954186), gui_app)
-
-    if uptime > 15 and last_uptime < 15:
-        # PAO
-        dbg("--- Test update 3")
-        flights.add_location(Location(flight="**test 2**", now=time.time(), track=0, gs=100, alt_baro=1000, lat=37.461671,lon=-122.121137), gui_app)
-
-    last_uptime = uptime
-
-def sock_read(listen, app):
-    global gui_app
-    gui_app = app
+def sock_read(flights, listen, app):
     line = listen.readline()
     # print(line)
     jsondict = json.loads(line)
     # pp.pprint(jsondict)
 
     loc = Location.from_dict(jsondict)
-    flight = flights.add_location(loc, gui_app)
+    flight = flights.add_location(loc, app)
 
-    test(lambda: test_insert(flight))
-
-def expire_old_flights(gui_app):
-    flights.expire_old(gui_app)
+    test(lambda: test_insert(flights, app))
 
 
-if __name__ == '__main__' :
-    listen = setup()
+def sock_read_loop(listen, controllerapp):
+    last_expire = time.time()
+    bboxes = Bboxes("sjc.kml")
+    flights = Flights(bboxes)
 
-    read_thread = threading.Thread(target=readline_loop, args=(listen,))
+    while True:
+        sock_read(flights, listen, controllerapp)
+        if time.time() - last_expire > 1:
+            expire_old_flights(flights, controllerapp)
+            last_expire = time.time()
+
+
+def expire_old_flights(flights, app):
+    flights.expire_old(app)

@@ -1,6 +1,6 @@
+import dataclasses
 from dataclasses import dataclass, field
 from typing import Optional
-import dataclasses
 import time
 import statistics
 
@@ -68,7 +68,7 @@ class Flight:
 
     def get_alt_change_str(self, alt):
         altchange = self.track_alt(alt)
-        altchangestr = " "
+        altchangestr = "  "
         if altchange > 0:
             altchangestr = "^"
         if altchange < 0:
