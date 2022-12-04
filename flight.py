@@ -6,12 +6,12 @@ import statistics
 
 @dataclass
 class Location:
-    """A single aircraft position update"""
+    """A single aircraft position + data update """
     lat: float
     lon: float
     alt_baro: int
     now: Optional[float]
-    flight: str
+    flight: Optional[str]  # the flight id 
     gs: Optional[float]
     track: float = 0.
 
@@ -33,8 +33,7 @@ class Location:
         return Location(lat=self.lat - other.lat,
                         lon=self.lon - other.lon,
                         alt_baro=self.alt_baro - other.alt_baro,
-                        now=self.now - other.now,
-                        flight=self.flight)
+                        now=self.now - other.now)
 
     def __lt__(self, other):
         return self.alt_baro < other.alt_baro
@@ -45,7 +44,7 @@ class Location:
 @dataclass
 class Flight:
     """Summary of a series of locations, plus other annotations"""
-    flight: str
+    flight_id: str
     firstloc: Location
     lastloc: Location
     bbox_index: int = -1

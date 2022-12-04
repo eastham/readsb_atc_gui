@@ -20,9 +20,9 @@ listen = None
 controllerapp = None
 
 class Controller(FloatLayout):
-    def __init__(self):
-        super().__init__()
-        pass
+    def do_add_click(self, n):
+        dbg("add click %d" % n)
+
 
 class FlightStrip(Button):
     def __init__(self, index, app, id):
@@ -158,7 +158,7 @@ if __name__ == '__main__':
     dbg("Scheduling complete")
 
     controllerapp = ControllerApp(read_thread)
-    read_thread = threading.Thread(target=aio.sock_read_loop,
+    read_thread = threading.Thread(target=aio.flight_read_loop,
         args=[listen_socket, controllerapp])
 
     dbg("Starting main loop")

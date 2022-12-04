@@ -11,7 +11,8 @@
             id: arrivals
             cols: 1
             HeaderButton:
-                text: "Arrivals"
+                text: "Arrivals (add)"
+                on_press: root.do_add_click(1)
                 background_color: 0,.5,0,1
             MyScrollView:
                 size_hint_y: 10
@@ -20,7 +21,8 @@
         GridLayout:
             cols: 1
             HeaderButton:
-                text: "Departures"
+                text: "Departures (add)"
+                on_press: root.do_add_click(0)
                 background_color: 1,.3,.3,1
             MyScrollView:
                 size_hint_y: 10
@@ -29,7 +31,8 @@
         GridLayout:
             cols: 1
             HeaderButton:
-                text: "Scenic"
+                text: "Scenic (add)"
+                on_press: root.do_add_click(2)
                 background_color: .3,.3,1,1
             MyScrollView:
                 size_hint_y: 10
@@ -46,7 +49,7 @@
 
 <HeaderButton@Button>:
     width:300
-    disabled: True
+    #disabled: True
     size_hint_y: 1
     background_normal: ''
     disabled_color: 1, 1, 1, 1
@@ -65,19 +68,6 @@
     on_press: root.do_click()
     background_color: 0,.5,0,1
 
-<AddButton@Button>:
-    markup: True
-#    text_size: 500,150
-    halign: "left"
-    valign: "top"
-    text: """add"""
-    
-    size_hint_y: None
-    size_hint_x: 1
-    height:50
-    on_press: app.add_button(root.parent)
-    background_color: 0,.5,0,1
-
 <MyScrollView@ScrollView>:
     bar_width: 20
     id: sv
@@ -88,9 +78,3 @@
         height: self.minimum_height
         padding: 5
         spacing: 5
-#        FlightStrip:
-#            id: test
-#        FlightStrip:
-#            id: test2
-        AddButton:
-            id: add
