@@ -64,7 +64,9 @@ class Bboxes:
                 return hdg >= start or hdg <= end
             return hdg >= start and hdg <= end
         except:
-            dbg("hdg %d %d-%d" %(hdg,start,end))
+            dbg("hdg %s" % str(hdg))
+            dbg("start %s" % str(start))
+            dbg("start %s" % str(end))
             exit(1)
 
     def contains(self, lat, long, hdg, alt):

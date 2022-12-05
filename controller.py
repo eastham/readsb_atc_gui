@@ -10,9 +10,11 @@ from kivy.uix.button import Button
 from kivy.app import App
 from kivy.properties import ObjectProperty, StringProperty
 
-import aio
+import signal
 import threading
 import time
+
+import aio
 from dialog import Dialog
 from dbg import dbg, test
 from bboxes import Bboxes
@@ -24,7 +26,6 @@ controllerapp = None
 class Controller(FloatLayout):
     def do_add_click(self, n):
         dbg("add click %d" % n)
-
 
 class FlightStrip(Button):
     def __init__(self, index, app, id):
@@ -47,6 +48,18 @@ class FlightStrip(Button):
         scrollbox_name = "scroll_%d" % self.scrollview_index
         return self.app.controller.ids[scrollbox_name].children[0]
 
+    def update(self, flight, location, bboxes_list):
+        # dbg("strip.update %s" % flight)
+        self.top_string = flight.flight_id
+
+        bbox_2nd_level = flight.get_bbox_at_level(1, bboxes_list)
+        self.loc_string = bbox_2nd_level.name if bbox_2nd_level else ""
+
+        altchangestr = flight.get_alt_change_str(location.alt_baro)
+        self.alt_string = altchangestr + " " + str(location.alt_baro) + " " + str(int(location.gs))
+
+        self.update_strip_text()
+
     def unrender(self):
         self.get_scrollview().remove_widget(self)
 
@@ -54,10 +67,9 @@ class FlightStrip(Button):
         self.get_scrollview().add_widget(self, index=100)
 
 class ControllerApp(MDApp):
-    def __init__(self, read_thread):
+    def __init__(self):
         dbg("controller init")
         self.strips = {}    # dict of FlightStrips by id
-        self.read_thread = read_thread
         self.dialog = None
         self.OMIT_INDEX = 3  # don't move strips to this index
 
@@ -72,66 +84,47 @@ class ControllerApp(MDApp):
         return self.controller
 
     @mainthread
-    def update_strip(self, id, bbox_index: int):  # XXX misnamed, args redundant, just use flight?
+    def update_strip(self, flight, location, bboxes):  # XXX misnamed, args redundant, just use flight?
         move = False
+        new_scrollview_index = flight.inside_bboxes[0]
+        id = flight.flight_id
 
         if id in self.strips:
             strip = self.strips[id]
+            strip.update(flight, location, bboxes)
 
-            if bbox_index < 0:
-                bbox_index = strip.scrollview_index # don't move but continue to update indefinitely
-
-            if strip.scrollview_index != bbox_index and bbox_index != self.OMIT_INDEX:
-                strip.unrender()
-                dbg("bbox update")
-                strip.scrollview_index = bbox_index
-                move = True
-            else:
-                return # already rendered, no change in scrollview
-        else:
-            if bbox_index < 0:
+            if new_scrollview_index < 0:  # no longer in a tracked region
+                # don't move strip but continue to update indefinitely
                 return
+            if strip.scrollview_index != new_scrollview_index and new_scrollview_index != self.OMIT_INDEX:
+                # move strip to new scrollview
+                strip.unrender()
+                strip.scrollview_index = new_scrollview_index
+                move = True
+                strip.render()
+        else:
+            if new_scrollview_index < 0:
+                return # not in a tracked region now, don't add it
+            # location is inside one of our tracked regions, add new strip
             dbg("new flightstrip %s" % id)
-            strip = FlightStrip(bbox_index, self, id)
-            self.strips[id] = strip
-
-        if not move:
-            self.set_strip_color(id, (1,.7,.7))
+            strip = FlightStrip(new_scrollview_index, self, id)
+            strip.update(flight, location, bboxes)
+            strip.render()
+            self.set_strip_color(id, (1,.7,.7))  # highlight new strip
             Clock.schedule_once(lambda dt: self.set_strip_color(id, (.8,.4,.4)), 5)
 
-        strip.render()
-        strip.text = strip.top_string =  id
-        strip.update_strip_text()
+            self.strips[id] = strip
+
 
     @mainthread
-    def remove_strip(self, id, index):
-        try:
-            strip = self.strips[id]
-        except:
-            return
-        print("removing flight %s" % id)
-        strip.unrender()
-        del self.strips[id]
-
-    @mainthread
-    def update_strip_loc_string(self, flight, bbox_list):
+    def remove_strip(self, flight):
         try:
             strip = self.strips[flight.flight_id]
         except:
             return
-        subtitle_bbox = bbox_list[1]
-
-        if flight.inside_bboxes[1] > 0:
-            strip.loc_string = subtitle_bbox.boxes[flight.inside_bboxes[1]].name
-
-    @mainthread
-    def update_strip_alt(self, id, altstr, alt, gs):
-        try:
-            strip = self.strips[id]
-        except:
-            return
-        strip.alt_string = altstr + " " + str(alt) + " " + str(int(gs))
-        strip.update_strip_text()
+        print("removing flight %s" % flight.flight_id)
+        strip.unrender()
+        del self.strips[flight.flight_id]
 
     @mainthread
     def annotate_strip(self, id, note):
@@ -150,20 +143,8 @@ class ControllerApp(MDApp):
             return
         strip.background_color = color
 
-
-
-import signal
-
-def handler(signum, frame):
+def sigint_handler(signum, frame):
     exit(1)
-
-read_thread = None
-
-def start_reader(dt):
-    read_thread.start()  # XXX race cond, call start from init
-
-
-
 
 if __name__ == '__main__':
     import argparse
@@ -180,15 +161,13 @@ if __name__ == '__main__':
     for f in args.file:
         bboxes_list.append(Bboxes(f))
 
-    signal.signal(signal.SIGINT, handler)
+    signal.signal(signal.SIGINT, sigint_handler)
     listen_socket = aio.setup(args.ipaddr, args.port)
 
-    Clock.schedule_once(start_reader, 2)
-    dbg("Scheduling complete")
-
-    controllerapp = ControllerApp(read_thread)
+    controllerapp = ControllerApp()
     read_thread = threading.Thread(target=aio.flight_read_loop,
-        args=[listen_socket, controllerapp, bboxes_list])
+        args=[listen_socket, bboxes_list, controllerapp.update_strip, controllerapp.remove_strip])
+    Clock.schedule_once(lambda x: read_thread.start(), 2)
 
     dbg("Starting main loop")
     controllerapp.run()

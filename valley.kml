@@ -1,0 +1,194 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:kml="http://www.opengis.net/kml/2.2" xmlns:atom="http://www.w3.org/2005/Atom">
+<Document>
+	<name>valley.kml</name>
+	<StyleMap id="m_ylw-pushpin">
+		<Pair>
+			<key>normal</key>
+			<styleUrl>#s_ylw-pushpin</styleUrl>
+		</Pair>
+		<Pair>
+			<key>highlight</key>
+			<styleUrl>#s_ylw-pushpin_hl</styleUrl>
+		</Pair>
+	</StyleMap>
+	<StyleMap id="m_ylw-pushpin0">
+		<Pair>
+			<key>normal</key>
+			<styleUrl>#s_ylw-pushpin0</styleUrl>
+		</Pair>
+		<Pair>
+			<key>highlight</key>
+			<styleUrl>#s_ylw-pushpin_hl0</styleUrl>
+		</Pair>
+	</StyleMap>
+	<Style id="s_ylw-pushpin">
+		<IconStyle>
+			<scale>1.1</scale>
+			<Icon>
+				<href>http://maps.google.com/mapfiles/kml/pushpin/ylw-pushpin.png</href>
+			</Icon>
+			<hotSpot x="20" y="2" xunits="pixels" yunits="pixels"/>
+		</IconStyle>
+	</Style>
+	<Style id="s_ylw-pushpin0">
+		<IconStyle>
+			<scale>1.1</scale>
+			<Icon>
+				<href>http://maps.google.com/mapfiles/kml/pushpin/ylw-pushpin.png</href>
+			</Icon>
+			<hotSpot x="20" y="2" xunits="pixels" yunits="pixels"/>
+		</IconStyle>
+	</Style>
+	<Style id="s_ylw-pushpin_hl">
+		<IconStyle>
+			<scale>1.3</scale>
+			<Icon>
+				<href>http://maps.google.com/mapfiles/kml/pushpin/ylw-pushpin.png</href>
+			</Icon>
+			<hotSpot x="20" y="2" xunits="pixels" yunits="pixels"/>
+		</IconStyle>
+	</Style>
+	<Style id="s_ylw-pushpin_hl0">
+		<IconStyle>
+			<scale>1.3</scale>
+			<Icon>
+				<href>http://maps.google.com/mapfiles/kml/pushpin/ylw-pushpin.png</href>
+			</Icon>
+			<hotSpot x="20" y="2" xunits="pixels" yunits="pixels"/>
+		</IconStyle>
+	</Style>
+	<Folder>
+		<name>valley</name>
+		<open>1</open>
+		<Placemark>
+			<name>SJC approach: 0-6000 0-360</name>
+			<styleUrl>#m_ylw-pushpin0</styleUrl>
+			<Polygon>
+				<tessellate>1</tessellate>
+				<outerBoundaryIs>
+					<LinearRing>
+						<coordinates>
+							-121.77574167868,37.1783347938097,0 -121.6953727157926,37.20262338703695,0 -121.8991696895139,37.35858626378327,0 -121.933914658414,37.34024035379718,0 -121.77574167868,37.1783347938097,0 
+						</coordinates>
+					</LinearRing>
+				</outerBoundaryIs>
+			</Polygon>
+		</Placemark>
+		<Placemark>
+			<name>RHV pattern: 0-3000 0-360</name>
+			<styleUrl>#m_ylw-pushpin0</styleUrl>
+			<Polygon>
+				<tessellate>1</tessellate>
+				<outerBoundaryIs>
+					<LinearRing>
+						<coordinates>
+							-121.7985311728674,37.28257579292855,0 -121.7596623485558,37.30555673333357,0 -121.8068199867967,37.36054246931151,0 -121.8492515834209,37.33906678074981,0 -121.7985311728674,37.28257579292855,0 
+						</coordinates>
+					</LinearRing>
+				</outerBoundaryIs>
+			</Polygon>
+		</Placemark>
+		<Placemark>
+			<name>SW of SJC: 0-10000 0-360</name>
+			<styleUrl>#m_ylw-pushpin0</styleUrl>
+			<Polygon>
+				<tessellate>1</tessellate>
+				<outerBoundaryIs>
+					<LinearRing>
+						<coordinates>
+							-121.9343371477942,37.33847269519655,0 -122.0720740453218,37.29960545928211,0 -121.9495346113288,37.12539039475579,0 -121.7765884043316,37.17599187367697,0 -121.9343371477942,37.33847269519655,0 
+						</coordinates>
+					</LinearRing>
+				</outerBoundaryIs>
+			</Polygon>
+		</Placemark>
+		<Placemark>
+			<name>Moffett: 0-4000 0-360</name>
+			<styleUrl>#m_ylw-pushpin0</styleUrl>
+			<Polygon>
+				<tessellate>1</tessellate>
+				<outerBoundaryIs>
+					<LinearRing>
+						<coordinates>
+							-122.065636426757,37.48173863928223,0 -122.0858490866354,37.36559629476131,0 -122.0311150503684,37.35501110371617,0 -121.9787614402772,37.36985280788361,0 -122.0295970326869,37.47734227589066,0 -122.065636426757,37.48173863928223,0 
+						</coordinates>
+					</LinearRing>
+				</outerBoundaryIs>
+			</Polygon>
+		</Placemark>
+		<Placemark>
+			<name>NE of SJC: 0-10000 0-360</name>
+			<styleUrl>#m_ylw-pushpin0</styleUrl>
+			<Polygon>
+				<tessellate>1</tessellate>
+				<outerBoundaryIs>
+					<LinearRing>
+						<coordinates>
+							-121.9685474785958,37.45240302296368,0 -121.8609651948662,37.33369109180753,0 -121.784395230975,37.36887482142682,0 -121.8824900123925,37.47647341979681,0 -121.9685474785958,37.45240302296368,0 
+						</coordinates>
+					</LinearRing>
+				</outerBoundaryIs>
+			</Polygon>
+		</Placemark>
+		<Placemark>
+			<name>Over bay: 0-10000 0-360</name>
+			<styleUrl>#m_ylw-pushpin0</styleUrl>
+			<Polygon>
+				<tessellate>1</tessellate>
+				<outerBoundaryIs>
+					<LinearRing>
+						<coordinates>
+							-122.1774274352439,37.51536216915751,0 -121.996221721285,37.43581383928316,0 -121.9427822131068,37.48247100209208,0 -122.0855117224088,37.57080463313029,0 -122.1774274352439,37.51536216915751,0 
+						</coordinates>
+					</LinearRing>
+				</outerBoundaryIs>
+			</Polygon>
+		</Placemark>
+		<Placemark>
+			<name>West valley: 0-10000 0-360</name>
+			<styleUrl>#m_ylw-pushpin0</styleUrl>
+			<Polygon>
+				<tessellate>1</tessellate>
+				<outerBoundaryIs>
+					<LinearRing>
+						<coordinates>
+							-122.1342033993726,37.32273316669658,0 -122.0880297753557,37.38337615416166,0 -122.1936082938285,37.5106032897644,0 -122.3114564879281,37.45151172419784,0 -122.1342033993726,37.32273316669658,0 
+						</coordinates>
+					</LinearRing>
+				</outerBoundaryIs>
+			</Polygon>
+		</Placemark>
+		<Placemark>
+			<name>SJC vicinity: 0-10000 0-360</name>
+			<visibility>0</visibility>
+			<styleUrl>#m_ylw-pushpin0</styleUrl>
+			<Polygon>
+				<tessellate>1</tessellate>
+				<outerBoundaryIs>
+					<LinearRing>
+						<coordinates>
+							-122.0052451800498,37.43074056339827,0 -121.927528163236,37.29530751429539,0 -121.8619076562811,37.3310688204196,0 -121.9686520317664,37.4499290577146,0 -122.0052451800498,37.43074056339827,0 
+						</coordinates>
+					</LinearRing>
+				</outerBoundaryIs>
+			</Polygon>
+		</Placemark>
+		<Placemark>
+			<name>PAO:0-2000 0-360</name>
+			<open>1</open>
+			<styleUrl>#m_ylw-pushpin</styleUrl>
+			<Polygon>
+				<tessellate>1</tessellate>
+				<outerBoundaryIs>
+					<LinearRing>
+						<coordinates>
+							-122.1264132141985,37.48938529648724,0 -122.15034153342,37.48339065118813,0 -122.1524060026259,37.46625105096,0 -122.1467340359969,37.45136052475661,0 -122.1258274017962,37.43984587269593,0 -122.1046987833493,37.42981853999584,0 -122.0817257207507,37.43450050090829,0 -122.0711942159603,37.44866355461256,0 -122.0759136468689,37.46653628234806,0 -122.101990908957,37.48382800676471,0 -122.1264132141985,37.48938529648724,0 
+						</coordinates>
+					</LinearRing>
+				</outerBoundaryIs>
+			</Polygon>
+		</Placemark>
+	</Folder>
+</Document>
+</kml>

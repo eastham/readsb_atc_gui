@@ -27,7 +27,7 @@ class Flights:
         self.lock = threading.Lock()
         self.EXPIRE_SECS = 15
 
-    def add_location(self, loc: Location, gui_app):
+    def add_location(self, loc: Location, update_cb):
         flight_id = loc.flight
         if flight_id == "N/A": return
 
@@ -41,26 +41,22 @@ class Flights:
             print("new flight %s " % flight_id)
 
         flight.update_inside_bboxes(self.bboxes, loc)
-        flight.bbox_index = flight.inside_bboxes[0] # XXX hack
 
-        if gui_app:
-            # XXX just pass in flight to callback registered earlier
-            gui_app.update_strip(flight.flight_id, flight.bbox_index)
-            altchangestr = flight.get_alt_change_str(loc.alt_baro)
-            gui_app.update_strip_alt(flight.flight_id, altchangestr, loc.alt_baro, loc.gs)
-            gui_app.update_strip_loc_string(flight, self.bboxes)
+        if update_cb:
+            update_cb(flight, loc, self.bboxes)
+
         flight.lastloc = loc
         self.lock.release()
 
         return flight
 
-    def expire_old(self, gui_app):
+    def expire_old(self, expire_cb):
         self.lock.acquire()
         for f in list(self.dict):
-            if (time.time() - self.dict[f].lastloc.now > self.EXPIRE_SECS):
+            flight = self.dict[f]
+            if (time.time() - flight.lastloc.now > self.EXPIRE_SECS):
                 print("expiring flight %s" % f)
-                if gui_app:
-                    gui_app.remove_strip(f, self.dict[f].bbox_index)
+                if expire_cb: expire_cb(flight)
                 del self.dict[f]
 
         self.lock.release()
@@ -95,39 +91,37 @@ class TCPConnection:
         data = self.f.readline()
         return data
 
-
-def abortcb(signum, frame):
+def sigint_handler(signum, frame):
     exit(1)
-
 
 def setup(ipaddr, port):
     dbg("Connecting to %s:%d" % (ipaddr,int(port)))
-    signal.signal(signal.SIGINT, abortcb)
+    signal.signal(signal.SIGINT, sigint_handler)
     listen = TCPConnection()
     listen.connect(ipaddr, int(port)) # '192.168.87.60',30666)
     lastupdate = 0
     dbg("Setup done")
     return listen
 
-def flight_update_read(flights, listen, app):
+def flight_update_read(flights, listen, update_cb):
     line = listen.readline()
     # print(line)
     jsondict = json.loads(line)
     # pp.pprint(jsondict)
 
     loc_update = Location.from_dict(jsondict)
-    flight = flights.add_location(loc_update, app)
+    flight = flights.add_location(loc_update, update_cb)
 
-def flight_read_loop(listen, controllerapp, bbox_list): # need two callbacks, one to add one to remove
+def flight_read_loop(listen, bbox_list, update_cb, expire_cb): # need two callbacks, one to add one to remove
     last_expire = time.time()
     flights = Flights(bbox_list)
 
     while True:
-        flight_update_read(flights, listen, controllerapp)
+        flight_update_read(flights, listen, update_cb)
         if time.time() - last_expire > 1:
-            flights.expire_old(controllerapp)
+            flights.expire_old(expire_cb)
             last_expire = time.time()
-        test(lambda: test_insert(flights, controllerapp))
+        test(lambda: test_insert(flights, update_cb))
 
 if __name__ == "__main__":
     import argparse
@@ -145,4 +139,4 @@ if __name__ == "__main__":
         bboxes_list.append(Bboxes(f))
 
     listen = setup(args.ipaddr, args.port)
-    flight_read_loop(listen, None, bboxes_list)
+    flight_read_loop(listen, bboxes_list, None, None)

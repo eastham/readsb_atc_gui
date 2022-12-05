@@ -8,17 +8,13 @@ from dbg import dbg
 @dataclass
 class Location:
     """A single aircraft position + data update """
-    lat: float
-    lon: float
-    alt_baro: int
-    now: Optional[float]
-    flight: Optional[str]  # the flight id
-    gs: Optional[float]
+    lat: float = 0.
+    lon: float = 0.
+    alt_baro: int = 0
+    now: Optional[float] = 0
+    flight: Optional[str] = "N/A" # the flight id
+    gs: Optional[float] = 0
     track: float = 0.
-
-    def __post_init__(self):
-        if type(self.alt_baro) is str: self.alt_baro = -1 # alt_baro can be "ground"
-        now = time.time()
 
     @classmethod
     def from_dict(cl, d: dict):
@@ -26,8 +22,7 @@ class Location:
         for f in dataclasses.fields(Location):
             if f.name in d:
                 nd[f.name] = d[f.name]
-            else:
-                nd[f.name] = "N/A"
+
         return Location(**nd)
 
     def __sub__(self, other):
@@ -49,7 +44,6 @@ class Flight:
     firstloc: Location
     lastloc: Location
     bbox_list: InitVar[list]
-    bbox_index: int = -1
     alt_list: list = field(default_factory=list)  # last n altitudes we've seen
     inside_bboxes: list = field(default_factory=list)  # most recent bboxes we've been inside, by file
     ALT_TRACK_ENTRIES = 5
@@ -77,11 +71,20 @@ class Flight:
             altchangestr = "^"
         if altchange < 0:
             altchangestr = "v"
+        # print("altchangestr for %s: %s" % (self.flight_id, altchangestr))
         return altchangestr
 
     def update_inside_bboxes(self, bbox_list, loc):
         for i, bbox in enumerate(bbox_list):
             new_bbox = bbox_list[i].contains(loc.lat, loc.lon, loc.track, loc.alt_baro)
             if self.inside_bboxes[i] != new_bbox:
-                dbg("%s now inside %s" % (self.flight_id, bbox_list[i].boxes[new_bbox].name))
+                dbg("Flight.update_inside_bboxes: %s now inside %s" % (self.flight_id, bbox_list[i].boxes[new_bbox].name))
                 self.inside_bboxes[i] = new_bbox
+
+    def get_bbox_at_level(self, level, bboxes_list):
+        inside_n = self.inside_bboxes[level]
+        if inside_n >= 0:
+            bboxes = bboxes_list[level]
+            return bboxes.boxes[inside_n]
+        else:
+            return None
