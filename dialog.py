@@ -11,13 +11,19 @@ kv = '''
     size_hint_y: None
 
     MDTextField:
+        focus: True
         id : pin
+        on_text_validate: root.enter_pressed()
 
 '''
 
 class Content(BoxLayout):
-    pass
+    def __init__(self, on_enter_cb):
+        self.on_enter_cb = on_enter_cb
+        super().__init__()
 
+    def enter_pressed(self):
+        self.on_enter_cb(None)
 
 class Dialog:
     cdialog = None
@@ -30,15 +36,16 @@ class Dialog:
     def show_custom_dialog(self, app, id):
         self.app = app
         self.id = id
-        content_cls = Content()
+        on_enter_cb = lambda x:self.get_data(x,content_cls)
+        content_cls = Content(on_enter_cb)
         self.cdialog = MDDialog(title='Enter Code', content_cls=content_cls,
             type="custom", buttons = [
                 MDFlatButton(text="Cancel",on_release=self.close_dialog),
-                MDRaisedButton(text="Ok",on_release=lambda x:self.get_data(x,content_cls))
+                MDRaisedButton(text="Ok",on_release=on_enter_cb)
             ])
         self.cdialog.open()
 
-    def close_dialog(self, instance):
+    def close_dialog(self):
         if self.cdialog:
             self.cdialog.dismiss()
 
@@ -47,4 +54,4 @@ class Dialog:
         value = textfield._get_text()
         self.app.annotate_strip(self.id, value)
         self.app.set_strip_color(self.id, (.4,.4,.4))
-        self.close_dialog(instance_btn)
+        self.close_dialog()
