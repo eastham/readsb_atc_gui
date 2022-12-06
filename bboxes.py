@@ -1,9 +1,9 @@
 #!/usr/bin/python3
 
-from fastkml import kml
-from shapely.geometry import Point, LineString, Polygon
 import pprint
 import re
+from fastkml import kml
+from shapely.geometry import Point, LineString, Polygon
 from dataclasses import dataclass
 from dbg import dbg
 
@@ -17,8 +17,6 @@ class Bbox:
     starthdg: int
     endhdg: int
     name: str
-    index: int  # index in bboxes.  needed to know what dialog box to dr
-
 
 class Bboxes:
     def __init__(self, fn):
@@ -48,7 +46,7 @@ class Bboxes:
             print("Using Bounding Box %s: %d-%d" % (name,minalt,maxalt))
             newbox = Bbox(polygon=Polygon(feature.geometry),
                 minalt=minalt, maxalt=maxalt, starthdg=starthdg,
-                endhdg=endhdg, name=name, index=polygon_ctr)
+                endhdg=endhdg, name=name)
             polygon_ctr += 1
             print(pp.pprint(newbox))
             self.boxes.append(newbox)
@@ -64,13 +62,10 @@ class Bboxes:
                 return hdg >= start or hdg <= end
             return hdg >= start and hdg <= end
         except:
-            dbg("hdg %s" % str(hdg))
-            dbg("start %s" % str(start))
-            dbg("start %s" % str(end))
             exit(1)
 
     def contains(self, lat, long, hdg, alt):
-        "returns index of first matching bounding box, otherwise -1 if not found"
+        "returns index of first matching bounding box, or -1 if not found"
         for i, box in enumerate(self.boxes):
             # print(pp.pprint(box))
             if box.polygon.contains(Point(long,lat)) and self.hdg_contains(hdg, box.starthdg, box.endhdg):
