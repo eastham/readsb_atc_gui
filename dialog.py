@@ -4,19 +4,45 @@ from kivymd.uix.button import MDFlatButton, MDRaisedButton
 from kivy.lang.builder import Builder
 from kivy.uix.boxlayout import BoxLayout
 
+kv_multi = '''
+<Content>:
+    orientation: "vertical"
+    spacing: "12dp"
+    size_hint: (1, None)
+    height:200
+
+    MDBoxLayout:
+        id: arrivals
+        orientation: "vertical"
+        adaptive_height: True
+
+        MDTextField:
+            focus: True
+            id : pin
+            on_text_validate: root.enter_pressed()
+            height: "30dp"
+        MDLabel:
+            text: "test"
+        MDTextField:
+            focus: True
+            id : pin
+            on_text_validate: root.enter_pressed()
+            height: "30dp"
+
+'''
 kv = '''
 <Content>:
     orientation: "vertical"
     spacing: "12dp"
-    size_hint_y: None
+    size_hint: (1, None)
 
     MDTextField:
         focus: True
         id : pin
         on_text_validate: root.enter_pressed()
+        height: "30dp"
 
 '''
-
 class Content(BoxLayout):
     def __init__(self, on_enter_cb):
         self.on_enter_cb = on_enter_cb
@@ -40,7 +66,7 @@ class Dialog:
         content_cls = Content(on_enter_cb)
         self.cdialog = MDDialog(title='Enter Code', content_cls=content_cls,
             type="custom", buttons = [
-                MDFlatButton(text="Cancel",on_release=self.close_dialog),
+                MDFlatButton(text="Cancel",on_release=lambda x: self.close_dialog()),
                 MDRaisedButton(text="Ok",on_release=on_enter_cb)
             ])
         self.cdialog.open()

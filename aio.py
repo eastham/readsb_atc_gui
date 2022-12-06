@@ -20,7 +20,7 @@ from test import test_insert
 pp = pprint.PrettyPrinter(indent=4)
 
 class Flights:
-    """generated from locations row with no more than 5 min break"""
+    """all Flight objects in the system, indexed by flight_id"""
     def __init__(self, bboxes):
         self.dict = {}      # dict of Flight by flight id
         self.bboxes = bboxes
@@ -67,8 +67,6 @@ class Flights:
             print("%s: seen for %d sec type %s" % (fl.flight_id,
                             (fl.lastloc-fl.firstloc).now, fl.bbox_index))
         self.lock.release()
-
-
 
 class TCPConnection:
     def __init__(self, sock=None):
