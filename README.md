@@ -39,3 +39,5 @@ Specify gates with Polygons named as follows (Google Earth can do this for you e
     [Gate Name]: [minimum altitude]-[maximum altitude] [start heading range]-[end heading range]
 example:
     Departure SJC 31:0-2000 250-070
+
+The first KML file specified on the command line will be used to place it into the four regions on the screen (in the order specified in the file), the second will be used for annotating the strip.

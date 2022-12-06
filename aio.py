@@ -38,7 +38,7 @@ class Flights:
         else:
             flight = self.dict[flight_id] = Flight(flight_id, loc, loc, self.bboxes)
             flight.firstloc = loc
-            print("new flight %s " % flight_id)
+            dbg("new flight %s " % flight_id)
 
         flight.update_inside_bboxes(self.bboxes, loc)
 
@@ -55,7 +55,7 @@ class Flights:
         for f in list(self.dict):
             flight = self.dict[f]
             if (time.time() - flight.lastloc.now > self.EXPIRE_SECS):
-                print("expiring flight %s" % f)
+                dbg("expiring flight %s" % f)
                 if expire_cb: expire_cb(flight)
                 del self.dict[f]
 
@@ -64,7 +64,7 @@ class Flights:
     def dump(self):
         self.lock.acquire()
         for f, fl in self.dict.items():
-            print("%s: seen for %d sec type %s" % (fl.flight_id,
+            dbg("%s: seen for %d sec type %s" % (fl.flight_id,
                             (fl.lastloc-fl.firstloc).now, fl.bbox_index))
         self.lock.release()
 
@@ -93,7 +93,7 @@ def sigint_handler(signum, frame):
     exit(1)
 
 def setup(ipaddr, port):
-    dbg("Connecting to %s:%d" % (ipaddr,int(port)))
+    print("Connecting to %s:%d" % (ipaddr,int(port)))
     signal.signal(signal.SIGINT, sigint_handler)
     listen = TCPConnection()
     listen.connect(ipaddr, int(port)) # '192.168.87.60',30666)

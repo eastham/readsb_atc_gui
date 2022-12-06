@@ -1,7 +1,8 @@
-debug_level = True
+debug_level = False
 TEST = True
 
 def set_dbg_level(l):
+    global debug_level
     debug_level = l
 
 def dbg(*args, **kvargs):

@@ -71,7 +71,6 @@ class Flight:
             altchangestr = "^"
         if altchange < 0:
             altchangestr = "v"
-        # print("altchangestr for %s: %s" % (self.flight_id, altchangestr))
         return altchangestr
 
     def update_inside_bboxes(self, bbox_list, loc):

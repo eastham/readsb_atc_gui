@@ -16,7 +16,7 @@ import time
 
 import aio
 from dialog import Dialog
-from dbg import dbg, test
+from dbg import dbg, test, set_dbg_level
 from bboxes import Bboxes
 from flight import Flight
 
@@ -49,7 +49,6 @@ class FlightStrip(Button):
         return self.app.controller.ids[scrollbox_name].children[0]
 
     def update(self, flight, location, bboxes_list):
-        # dbg("strip.update %s" % flight)
         self.top_string = flight.flight_id
 
         bbox_2nd_level = flight.get_bbox_at_level(1, bboxes_list)
@@ -122,7 +121,7 @@ class ControllerApp(MDApp):
             strip = self.strips[flight.flight_id]
         except:
             return
-        print("removing flight %s" % flight.flight_id)
+        dbg("removing flight %s" % flight.flight_id)
         strip.unrender()
         del self.strips[flight.flight_id]
 
