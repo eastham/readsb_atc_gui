@@ -48,14 +48,20 @@ class Flights:
         else:
             is_new_flight = True
             flight = self.dict[flight_id] = Flight(flight_id, loc, loc, self.bboxes)
-            dbg("new flight %s " % flight_id)
+
+        if is_new_flight:
+            logline = "Saw new flight: " + flight.to_str()
+            dbg(logline)
 
         flight.update_inside_bboxes(self.bboxes, loc)
 
-        if is_new_flight and new_flight_cb:
-            new_flight_cb(flight)
-        elif update_flight_cb:
-            update_flight_cb(flight)
+        if is_new_flight:
+            if new_flight_cb: new_flight_cb(flight)
+        else:
+            #if flight.in_any_bbox():
+            #    logline = "Updating flight: " + flight.to_str()
+            #    dbg(logline)
+            if update_flight_cb: update_flight_cb(flight)
 
         self.lock.release()
 
@@ -66,7 +72,7 @@ class Flights:
         for f in list(self.dict):
             flight = self.dict[f]
             if (time.time() - flight.lastloc.now > self.EXPIRE_SECS):
-                dbg("expiring flight %s" % f)
+                dbg("Expiring flight: %s" % f)
                 if expire_cb: expire_cb(flight)
                 del self.dict[f]
 
@@ -133,6 +139,7 @@ def flight_read_loop(listen, bbox_list, update_cb, expire_cb): # need two callba
         test(lambda: test_insert(flights, update_cb))
 
 if __name__ == "__main__":
+    # No-GUI mode, see controller.py for GUI
     import argparse
 
     parser = argparse.ArgumentParser(description="match flights against kml bounding boxes")
@@ -142,8 +149,9 @@ if __name__ == "__main__":
     parser.add_argument('--port', help="port to connect to", required=True)
     args = parser.parse_args()
 
-    bboxes_list = []
     if args.verbose: set_dbg_level(True)
+
+    bboxes_list = []
     for f in args.file:
         bboxes_list.append(Bboxes(f))
 

@@ -90,7 +90,7 @@ class ControllerApp(MDApp):
 
         if id in self.strips:
             strip = self.strips[id]
-            strip.update(flight, flight.lastloc, flight.bbox_list)
+            strip.update(flight, flight.lastloc, flight.bboxes_list)
 
             if new_scrollview_index < 0:  # no longer in a tracked region
                 # don't move strip but continue to update indefinitely
@@ -107,7 +107,7 @@ class ControllerApp(MDApp):
             # location is inside one of our tracked regions, add new strip
             dbg("new flightstrip %s" % id)
             strip = FlightStrip(new_scrollview_index, self, id)
-            strip.update(flight, flight.lastloc, flight.bbox_list)
+            strip.update(flight, flight.lastloc, flight.bboxes_list)
             strip.render()
             self.set_strip_color(id, (1,.7,.7))  # highlight new strip
             Clock.schedule_once(lambda dt: self.set_strip_color(id, (.8,.4,.4)), 5)
