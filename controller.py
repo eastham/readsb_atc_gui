@@ -14,7 +14,7 @@ import signal
 import threading
 import time
 
-import aio
+import adsb_receiver
 from dialog import Dialog
 from dbg import dbg, test, set_dbg_level
 from bboxes import Bboxes
@@ -83,14 +83,14 @@ class ControllerApp(MDApp):
         return self.controller
 
     @mainthread
-    def update_strip(self, flight, location, bboxes):  # XXX misnamed, args redundant, just use flight?
+    def update_strip(self, flight):
         move = False
         new_scrollview_index = flight.inside_bboxes[0]
         id = flight.flight_id
 
         if id in self.strips:
             strip = self.strips[id]
-            strip.update(flight, location, bboxes)
+            strip.update(flight, flight.lastloc, flight.bbox_list)
 
             if new_scrollview_index < 0:  # no longer in a tracked region
                 # don't move strip but continue to update indefinitely
@@ -107,7 +107,7 @@ class ControllerApp(MDApp):
             # location is inside one of our tracked regions, add new strip
             dbg("new flightstrip %s" % id)
             strip = FlightStrip(new_scrollview_index, self, id)
-            strip.update(flight, location, bboxes)
+            strip.update(flight, flight.lastloc, flight.bbox_list)
             strip.render()
             self.set_strip_color(id, (1,.7,.7))  # highlight new strip
             Clock.schedule_once(lambda dt: self.set_strip_color(id, (.8,.4,.4)), 5)
@@ -161,10 +161,10 @@ if __name__ == '__main__':
         bboxes_list.append(Bboxes(f))
 
     signal.signal(signal.SIGINT, sigint_handler)
-    listen_socket = aio.setup(args.ipaddr, args.port)
+    listen_socket = adsb_receiver.setup(args.ipaddr, args.port)
 
     controllerapp = ControllerApp()
-    read_thread = threading.Thread(target=aio.flight_read_loop,
+    read_thread = threading.Thread(target=adsb_receiver.flight_read_loop,
         args=[listen_socket, bboxes_list, controllerapp.update_strip, controllerapp.remove_strip])
     Clock.schedule_once(lambda x: read_thread.start(), 2)
 

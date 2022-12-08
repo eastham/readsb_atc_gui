@@ -3,6 +3,8 @@ from dataclasses import dataclass, field, InitVar
 from typing import Optional
 import time
 import statistics
+
+import bboxes
 from dbg import dbg
 
 @dataclass
@@ -43,13 +45,13 @@ class Flight:
     flight_id: str
     firstloc: Location
     lastloc: Location
-    bbox_list: InitVar[list]
+    bbox_list: list = field(default_factory=list)
     alt_list: list = field(default_factory=list)  # last n altitudes we've seen
     inside_bboxes: list = field(default_factory=list)  # most recent bboxes we've been inside, by file
     ALT_TRACK_ENTRIES = 5
 
-    def __post_init__(self, bbox_list):
-        self.inside_bboxes = [-1] * len(bbox_list)
+    def __post_init__(self):
+        self.inside_bboxes = [-1] * len(self.bbox_list)
 
     def track_alt(self, alt):
         avg = alt

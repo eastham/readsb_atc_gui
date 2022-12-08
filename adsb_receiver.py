@@ -27,25 +27,36 @@ class Flights:
         self.lock = threading.Lock()
         self.EXPIRE_SECS = 15
 
-    def add_location(self, loc: Location, update_cb):
+    def add_location(self, loc: Location, new_flight_cb, update_flight_cb):
+        """
+        Track an aircraft location update, update what bounding boxes it's in,
+        and fire callbacks to update the gui or do user-defined tasks.
+
+        loc: Location/flight info to update
+        new_flight_cb(flight): called if loc is a new flight and just added to the database.
+        update_flight_cb(flight): called when the position of loc is updated.
+        """
         flight_id = loc.flight
         if flight_id == "N/A": return
 
         self.lock.acquire()
 
         if flight_id in self.dict:
+            is_new_flight = False
             flight = self.dict[flight_id]
+            flight.lastloc = loc
         else:
+            is_new_flight = True
             flight = self.dict[flight_id] = Flight(flight_id, loc, loc, self.bboxes)
-            flight.firstloc = loc
             dbg("new flight %s " % flight_id)
 
         flight.update_inside_bboxes(self.bboxes, loc)
 
-        if update_cb:
-            update_cb(flight, loc, self.bboxes)
+        if is_new_flight and new_flight_cb:
+            new_flight_cb(flight)
+        elif update_flight_cb:
+            update_flight_cb(flight)
 
-        flight.lastloc = loc
         self.lock.release()
 
         return flight
@@ -108,7 +119,7 @@ def flight_update_read(flights, listen, update_cb):
     # pp.pprint(jsondict)
 
     loc_update = Location.from_dict(jsondict)
-    flight = flights.add_location(loc_update, update_cb)
+    flight = flights.add_location(loc_update, update_cb, update_cb)
 
 def flight_read_loop(listen, bbox_list, update_cb, expire_cb): # need two callbacks, one to add one to remove
     last_expire = time.time()
