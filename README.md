@@ -5,6 +5,8 @@ Given one or more KML files describing some bounding boxes / gates,
 this script will attach to a readsb JSON socket, and report when flights are inside the bounding boxes.
 Command-line and a Kivy-based GUI are available.
 
+![Screenshot](screenshot.png)
+
 Use cases:
 * The main goal here is to facilitate monitoring and statistics-gathering for flight operations at airports.
 * Individuals might also be interested in alerting, but this isn't the focus, at least until users like that step forward.
@@ -21,8 +23,6 @@ Other ideas:
 * bring in aircraft registration database somehow?
 * Your idea here, not sure what all this might be useful for.  Get in touch or send code.
 
-
-![Screenshot](screenshot.png)
 
 Command-line Usage:
 
