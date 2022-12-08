@@ -26,7 +26,7 @@ Other ideas:
 
 Command-line Usage:
 
-    python3 aio.py -v  --ipaddr 192.168.87.60 --port 30666 sample_kml/sjc.kml sample_kml/valley.kml
+    python3 adsb_receiver.py -v  --ipaddr 192.168.87.60 --port 30666 sample_kml/sjc.kml sample_kml/valley.kml
 
 GUI Usage:
 
