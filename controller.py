@@ -20,7 +20,6 @@ from dbg import dbg, set_dbg_level
 from bboxes import Bboxes
 from flight import Flight
 
-listen = None
 controllerapp = None
 
 class Controller(FloatLayout):

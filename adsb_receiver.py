@@ -1,8 +1,4 @@
 
-# TODO
-# probably need to expire out in-ram locations over an hour old...
-# write to disk hourly, clear everything more than 5 min old
-
 import dataclasses
 import socket
 import threading
@@ -22,7 +18,7 @@ pp = pprint.PrettyPrinter(indent=4)
 
 class Flights:
     """all Flight objects in the system, indexed by flight_id"""
-    dict: Dict[str, Flight] = {}
+    flight_dict: Dict[str, Flight] = {}
     lock: threading.Lock = threading.Lock()
     EXPIRE_SECS: int = 15
 
@@ -43,13 +39,13 @@ class Flights:
 
         self.lock.acquire()
 
-        if flight_id in self.dict:
+        if flight_id in self.flight_dict:
             is_new_flight = False
-            flight = self.dict[flight_id]
+            flight = self.flight_dict[flight_id]
             flight.lastloc = loc
         else:
             is_new_flight = True
-            flight = self.dict[flight_id] = Flight(flight_id, loc, loc, self.bboxes)
+            flight = self.flight_dict[flight_id] = Flight(flight_id, loc, loc, self.bboxes)
 
         if is_new_flight:
             logline = "Saw new flight: " + flight.to_str()
@@ -71,26 +67,25 @@ class Flights:
 
     def expire_old(self, expire_cb):
         self.lock.acquire()
-        for f in list(self.dict):
-            flight = self.dict[f]
+        for f in list(self.flight_dict):
+            flight = self.flight_dict[f]
             if (time.time() - flight.lastloc.now > self.EXPIRE_SECS):
                 dbg("Expiring flight: %s" % f)
                 if expire_cb: expire_cb(flight)
-                del self.dict[f]
+                del self.flight_dict[f]
 
         self.lock.release()
 
     def dump(self):
         self.lock.acquire()
-        for f, fl in self.dict.items():
+        for f, fl in self.flight_dict.items():
             dbg("%s: seen for %d sec type %s" % (fl.flight_id,
                             (fl.lastloc-fl.firstloc).now, fl.bbox_index))
         self.lock.release()
 
 class TCPConnection:
     def __init__(self):
-        self.sock = socket.socket(
-                        socket.AF_INET, socket.SOCK_STREAM)
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
     def connect(self, host, port):
         try:
@@ -102,8 +97,7 @@ class TCPConnection:
         self.f = self.sock.makefile()
 
     def readline(self):
-        data = self.f.readline()
-        return data
+        return self.f.readline()
 
 def sigint_handler(signum, frame):
     exit(1)
@@ -113,7 +107,7 @@ def setup(ipaddr, port):
 
     signal.signal(signal.SIGINT, sigint_handler)
     listen = TCPConnection()
-    listen.connect(ipaddr, int(port)) # '192.168.87.60',30666)
+    listen.connect(ipaddr, int(port))
 
     dbg("Setup done")
     return listen
