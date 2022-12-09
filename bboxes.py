@@ -32,7 +32,7 @@ class Bboxes:
     def parse_placemarks(self, document):
         for feature in document:
           if isinstance(feature, kml.Placemark):
-            re_result = re.search(r"([\w\d\s]+):\s*(\d+)-(\d+) (\d+)-(\d+)",
+            re_result = re.search(r"^([^:]+):\s*(\d+)-(\d+) (\d+)-(\d+)",
                 feature.name)
             if not re_result:
                 raise ValueError("KML feature name parse error: " +

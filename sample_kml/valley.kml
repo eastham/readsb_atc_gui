@@ -5,7 +5,7 @@
 	<StyleMap id="m_ylw-pushpin">
 		<Pair>
 			<key>normal</key>
-			<styleUrl>#s_ylw-pushpin</styleUrl>
+			<styleUrl>#s_ylw-pushpin2</styleUrl>
 		</Pair>
 		<Pair>
 			<key>highlight</key>
@@ -15,7 +15,17 @@
 	<StyleMap id="m_ylw-pushpin0">
 		<Pair>
 			<key>normal</key>
-			<styleUrl>#s_ylw-pushpin0</styleUrl>
+			<styleUrl>#s_ylw-pushpin</styleUrl>
+		</Pair>
+		<Pair>
+			<key>highlight</key>
+			<styleUrl>#s_ylw-pushpin_hl1</styleUrl>
+		</Pair>
+	</StyleMap>
+	<StyleMap id="m_ylw-pushpin00">
+		<Pair>
+			<key>normal</key>
+			<styleUrl>#s_ylw-pushpin1</styleUrl>
 		</Pair>
 		<Pair>
 			<key>highlight</key>
@@ -31,7 +41,16 @@
 			<hotSpot x="20" y="2" xunits="pixels" yunits="pixels"/>
 		</IconStyle>
 	</Style>
-	<Style id="s_ylw-pushpin0">
+	<Style id="s_ylw-pushpin1">
+		<IconStyle>
+			<scale>1.1</scale>
+			<Icon>
+				<href>http://maps.google.com/mapfiles/kml/pushpin/ylw-pushpin.png</href>
+			</Icon>
+			<hotSpot x="20" y="2" xunits="pixels" yunits="pixels"/>
+		</IconStyle>
+	</Style>
+	<Style id="s_ylw-pushpin2">
 		<IconStyle>
 			<scale>1.1</scale>
 			<Icon>
@@ -58,12 +77,22 @@
 			<hotSpot x="20" y="2" xunits="pixels" yunits="pixels"/>
 		</IconStyle>
 	</Style>
+	<Style id="s_ylw-pushpin_hl1">
+		<IconStyle>
+			<scale>1.3</scale>
+			<Icon>
+				<href>http://maps.google.com/mapfiles/kml/pushpin/ylw-pushpin.png</href>
+			</Icon>
+			<hotSpot x="20" y="2" xunits="pixels" yunits="pixels"/>
+		</IconStyle>
+	</Style>
 	<Folder>
 		<name>valley</name>
 		<open>1</open>
 		<Placemark>
 			<name>SJC Approach: 0-6000 0-360</name>
-			<styleUrl>#m_ylw-pushpin</styleUrl>
+			<visibility>0</visibility>
+			<styleUrl>#m_ylw-pushpin0</styleUrl>
 			<Polygon>
 				<tessellate>1</tessellate>
 				<outerBoundaryIs>
@@ -77,7 +106,8 @@
 		</Placemark>
 		<Placemark>
 			<name>RHV Pattern: 0-3000 0-360</name>
-			<styleUrl>#m_ylw-pushpin</styleUrl>
+			<visibility>0</visibility>
+			<styleUrl>#m_ylw-pushpin0</styleUrl>
 			<Polygon>
 				<tessellate>1</tessellate>
 				<outerBoundaryIs>
@@ -92,7 +122,7 @@
 		<Placemark>
 			<name>SW of SJC: 0-10000 0-360</name>
 			<visibility>0</visibility>
-			<styleUrl>#m_ylw-pushpin0</styleUrl>
+			<styleUrl>#m_ylw-pushpin00</styleUrl>
 			<Polygon>
 				<tessellate>1</tessellate>
 				<outerBoundaryIs>
@@ -105,9 +135,23 @@
 			</Polygon>
 		</Placemark>
 		<Placemark>
+			<name>Mountain View/Sunnyvale: 0-10000 0-360</name>
+			<styleUrl>#m_ylw-pushpin</styleUrl>
+			<Polygon>
+				<tessellate>1</tessellate>
+				<outerBoundaryIs>
+					<LinearRing>
+						<coordinates>
+							-122.0938535880895,37.38543334953204,0 -122.093027688752,37.36585465602485,0 -122.086860867092,37.35407326425549,0 -122.0443189165921,37.34344456973249,0 -122.0371976001921,37.35649370170597,0 -122.0344519261926,37.3712842679377,0 -122.0722604366731,37.38838370135491,0 -122.089066309706,37.39072341357037,0 -122.0938535880895,37.38543334953204,0 
+						</coordinates>
+					</LinearRing>
+				</outerBoundaryIs>
+			</Polygon>
+		</Placemark>
+		<Placemark>
 			<name>Moffett: 0-4000 0-360</name>
 			<visibility>0</visibility>
-			<styleUrl>#m_ylw-pushpin0</styleUrl>
+			<styleUrl>#m_ylw-pushpin00</styleUrl>
 			<Polygon>
 				<tessellate>1</tessellate>
 				<outerBoundaryIs>
@@ -122,7 +166,7 @@
 		<Placemark>
 			<name>NE of SJC: 0-10000 0-360</name>
 			<visibility>0</visibility>
-			<styleUrl>#m_ylw-pushpin0</styleUrl>
+			<styleUrl>#m_ylw-pushpin00</styleUrl>
 			<Polygon>
 				<tessellate>1</tessellate>
 				<outerBoundaryIs>
@@ -137,7 +181,7 @@
 		<Placemark>
 			<name>Over Bay: 0-10000 0-360</name>
 			<visibility>0</visibility>
-			<styleUrl>#m_ylw-pushpin</styleUrl>
+			<styleUrl>#m_ylw-pushpin0</styleUrl>
 			<Polygon>
 				<tessellate>1</tessellate>
 				<outerBoundaryIs>
@@ -152,7 +196,7 @@
 		<Placemark>
 			<name>West Valley: 0-10000 0-360</name>
 			<visibility>0</visibility>
-			<styleUrl>#m_ylw-pushpin</styleUrl>
+			<styleUrl>#m_ylw-pushpin0</styleUrl>
 			<Polygon>
 				<tessellate>1</tessellate>
 				<outerBoundaryIs>
@@ -167,7 +211,7 @@
 		<Placemark>
 			<name>SJC Vicinity: 0-10000 0-360</name>
 			<visibility>0</visibility>
-			<styleUrl>#m_ylw-pushpin</styleUrl>
+			<styleUrl>#m_ylw-pushpin0</styleUrl>
 			<Polygon>
 				<tessellate>1</tessellate>
 				<outerBoundaryIs>
@@ -183,7 +227,7 @@
 			<name>PAO West:0-2000 0-360</name>
 			<visibility>0</visibility>
 			<open>1</open>
-			<styleUrl>#m_ylw-pushpin</styleUrl>
+			<styleUrl>#m_ylw-pushpin0</styleUrl>
 			<Polygon>
 				<tessellate>1</tessellate>
 				<outerBoundaryIs>
@@ -199,7 +243,7 @@
 			<name>PAO East:0-2000 0-360</name>
 			<visibility>0</visibility>
 			<open>1</open>
-			<styleUrl>#m_ylw-pushpin</styleUrl>
+			<styleUrl>#m_ylw-pushpin0</styleUrl>
 			<Polygon>
 				<tessellate>1</tessellate>
 				<outerBoundaryIs>
@@ -213,11 +257,10 @@
 		</Placemark>
 		<Folder>
 			<name>sjc-east</name>
-			<visibility>0</visibility>
+			<open>1</open>
 			<Placemark>
-				<name>SJC Takeoff 13:0-3000 070-250</name>
-				<visibility>0</visibility>
-				<styleUrl>#m_ylw-pushpin</styleUrl>
+				<name>SJC Takeoff 12:0-3000 070-250</name>
+				<styleUrl>#m_ylw-pushpin0</styleUrl>
 				<Polygon>
 					<tessellate>1</tessellate>
 					<outerBoundaryIs>
@@ -230,24 +273,22 @@
 				</Polygon>
 			</Placemark>
 			<Placemark>
-				<name>SJC landing:0-2000 070-250</name>
-				<visibility>0</visibility>
-				<styleUrl>#m_ylw-pushpin</styleUrl>
+				<name>SJC Landing 12:0-2000 070-250</name>
+				<styleUrl>#m_ylw-pushpin0</styleUrl>
 				<Polygon>
 					<tessellate>1</tessellate>
 					<outerBoundaryIs>
 						<LinearRing>
 							<coordinates>
-								-122.0038484031791,37.41169772554111,0 -121.9476072539369,37.37144882698782,0 -121.9322452055119,37.37786489990594,0 -121.9322453473614,37.37817016784227,0 -121.9607391346493,37.42534569540291,0 -122.0038484031791,37.41169772554111,0 
+								-122.0299757039525,37.42908949742203,0 -121.9476072539369,37.37144882698782,0 -121.9322452055119,37.37786489990594,0 -121.9322453473614,37.37817016784227,0 -121.9812824083246,37.45506490482883,0 -122.0299757039525,37.42908949742203,0 
 							</coordinates>
 						</LinearRing>
 					</outerBoundaryIs>
 				</Polygon>
 			</Placemark>
 			<Placemark>
-				<name>PAO pattern:0-2000 0-360</name>
-				<visibility>0</visibility>
-				<styleUrl>#m_ylw-pushpin</styleUrl>
+				<name>PAO Pattern:0-2000 0-360</name>
+				<styleUrl>#m_ylw-pushpin0</styleUrl>
 				<Polygon>
 					<tessellate>1</tessellate>
 					<outerBoundaryIs>
@@ -262,7 +303,7 @@
 			<Placemark>
 				<name>Other nearby:0-10000 0-360</name>
 				<visibility>0</visibility>
-				<styleUrl>#m_ylw-pushpin</styleUrl>
+				<styleUrl>#m_ylw-pushpin0</styleUrl>
 				<Polygon>
 					<tessellate>1</tessellate>
 					<outerBoundaryIs>

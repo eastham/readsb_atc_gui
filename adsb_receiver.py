@@ -69,9 +69,12 @@ class Flights:
         self.lock.release()
 
     def check_distance(self):
-        """Check distance between all aircraft.  O(n^2), Can be expensive"""
+        """
+        Check distance between all bbox'ed aircraft.
+        O(n^2), can be expensive, but altitude and bbox limits help..
+        """
         MIN_ALT_SEPARATION = 600
-        MIN_DISTANCE = 1.
+        MIN_DISTANCE = 1.   # nautical miles
 
         flight_list = list(self.flight_dict.values())
 
@@ -83,20 +86,26 @@ class Flights:
                 loc2 = flight2.lastloc
                 if abs(loc1.alt_baro - loc2.alt_baro) < MIN_ALT_SEPARATION:
                     dist = loc1 - loc2
-                    if dist < MIN_DISTANCE: log("%s-%s distance %f" %
-                        (flight1.flight_id, flight2.flight_id, dist))
+                    if dist < MIN_DISTANCE:
+                        log("%s-%s inside minimum distance %.1f nm" %
+                            (flight1.flight_id, flight2.flight_id, dist))
 
 
 class TCPConnection:
-    def __init__(self):
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    def __init__(self, host, port):
+        self.host = host
+        self.port = port
+        self.sock = None
 
-    def connect(self, host, port):
+    def connect(self):
         try:
-            self.sock.connect((host, port))
+            if self.sock: self.sock.close()     # reconnect case
+            self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.sock.connect((self.host, self.port))
             print('Successful Connection')
         except:
             print('Connection Failed')
+            raise
 
         self.f = self.sock.makefile()
 
@@ -110,16 +119,21 @@ def setup(ipaddr, port):
     print("Connecting to %s:%d" % (ipaddr, int(port)))
 
     signal.signal(signal.SIGINT, sigint_handler)
-    listen = TCPConnection()
-    listen.connect(ipaddr, int(port))
+    listen = TCPConnection(ipaddr, int(port))
+    listen.connect()
 
     dbg("Setup done")
     return listen
 
 def flight_update_read(flights, listen, update_cb):
-    line = listen.readline()
 
-    jsondict = json.loads(line)
+    try:
+        line = listen.readline()
+        jsondict = json.loads(line)
+    except:
+        print("Socket input/parse error, attempting to reconnect...")
+        listen.connect()
+        return
     # pp.pprint(jsondict)
 
     loc_update = Location.from_dict(jsondict)
