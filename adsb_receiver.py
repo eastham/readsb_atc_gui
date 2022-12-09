@@ -73,10 +73,12 @@ class Flights:
         self.lock.release()
 
     def check_distance(self):
-        """Check distance between all aircraft.  Can be expensive"""
+        """Check distance between all aircraft.  O(n^2), Can be expensive"""
         MIN_ALT_SEPARATION = 600
         MIN_DISTANCE = 1.
+
         flight_list = list(self.flight_dict.values())
+
         for i, flight1 in enumerate(flight_list):
             if not flight1.in_any_bbox(): continue
             for j, flight2 in enumerate(flight_list[i+1:]):
