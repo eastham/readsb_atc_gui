@@ -1,4 +1,3 @@
-
 import dataclasses
 import socket
 import threading
@@ -10,7 +9,7 @@ import time
 from typing import Dict
 
 from bboxes import Bboxes
-from dbg import dbg, run_test, set_dbg_level
+from dbg import dbg, run_test, set_dbg_level, log
 from flight import Flight, Location
 from test import test_insert
 
@@ -47,14 +46,11 @@ class Flights:
             is_new_flight = True
             flight = self.flight_dict[flight_id] = Flight(flight_id, loc, loc, self.bboxes)
 
-        if is_new_flight:
-            logline = "Saw new flight: " + flight.to_str()
-            dbg(logline)
-
         flight.update_inside_bboxes(self.bboxes, loc)
 
         if is_new_flight:
             if new_flight_cb: new_flight_cb(flight)
+            if flight.in_any_bbox(): log("New flight: " + flight.to_str())
         else:
             #if flight.in_any_bbox():
             #    logline = "Updating flight: " + flight.to_str()
@@ -70,18 +66,28 @@ class Flights:
         for f in list(self.flight_dict):
             flight = self.flight_dict[f]
             if (time.time() - flight.lastloc.now > self.EXPIRE_SECS):
-                dbg("Expiring flight: %s" % f)
+                if flight.in_any_bbox(): log("Expiring flight: %s" % f)
                 if expire_cb: expire_cb(flight)
                 del self.flight_dict[f]
 
         self.lock.release()
 
-    def dump(self):
-        self.lock.acquire()
-        for f, fl in self.flight_dict.items():
-            dbg("%s: seen for %d sec type %s" % (fl.flight_id,
-                            (fl.lastloc-fl.firstloc).now, fl.bbox_index))
-        self.lock.release()
+    def check_distance(self):
+        """Check distance between all aircraft.  Can be expensive"""
+        MIN_ALT_SEPARATION = 600
+        MIN_DISTANCE = 1.
+        flight_list = list(self.flight_dict.values())
+        for i, flight1 in enumerate(flight_list):
+            if not flight1.in_any_bbox(): continue
+            for j, flight2 in enumerate(flight_list[i+1:]):
+                if not flight2.in_any_bbox(): continue
+                loc1 = flight1.lastloc
+                loc2 = flight2.lastloc
+                if abs(loc1.alt_baro - loc2.alt_baro) < MIN_ALT_SEPARATION:
+                    dist = loc1 - loc2
+                    if dist < MIN_DISTANCE: log("%s-%s distance %f" %
+                        (flight1.flight_id, flight2.flight_id, dist))
+
 
 class TCPConnection:
     def __init__(self):
@@ -132,6 +138,8 @@ def flight_read_loop(listen, bbox_list, update_cb, expire_cb): # need two callba
             flights.expire_old(expire_cb)
             last_expire = time.time()
 
+            flights.check_distance()
+
         run_test(lambda: test_insert(flights, update_cb))
 
 if __name__ == "__main__":
@@ -139,13 +147,14 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description="match flights against kml bounding boxes")
-    parser.add_argument("-v", "--verbose", action="store_true")
+    parser.add_argument("-d", "--debug", action="store_true")
     parser.add_argument('file', nargs='+', help="kml files to use")
     parser.add_argument('--ipaddr', help="IP address to connect to", required=True)
     parser.add_argument('--port', help="port to connect to", required=True)
     args = parser.parse_args()
 
-    if args.verbose: set_dbg_level(True)
+    if args.debug: set_dbg_level(2)
+    else: set_dbg_level(1)
 
     bboxes_list = []
     for f in args.file:

@@ -32,11 +32,9 @@
 	</Style>
 	<Folder>
 		<name>sjc</name>
-		<visibility>0</visibility>
 		<open>1</open>
 		<Placemark>
-			<name>SJC Takeoff 31:0-2000 250-070</name>
-			<visibility>0</visibility>
+			<name>SJC Takeoff 30:0-2000 250-070</name>
 			<styleUrl>#m_ylw-pushpin</styleUrl>
 			<Polygon>
 				<tessellate>1</tessellate>
@@ -50,8 +48,7 @@
 			</Polygon>
 		</Placemark>
 		<Placemark>
-			<name>SJC Land 31:0-3000 250-070</name>
-			<visibility>0</visibility>
+			<name>SJC Landing 30:0-3000 250-070</name>
 			<styleUrl>#m_ylw-pushpin</styleUrl>
 			<Polygon>
 				<tessellate>1</tessellate>

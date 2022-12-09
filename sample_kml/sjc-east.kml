@@ -34,7 +34,7 @@
 		<name>sjc-east</name>
 		<open>1</open>
 		<Placemark>
-			<name>SJC Takeoff 13:0-3000 070-250</name>
+			<name>SJC Takeoff 12:0-3000 070-250</name>
 			<styleUrl>#m_ylw-pushpin</styleUrl>
 			<Polygon>
 				<tessellate>1</tessellate>
@@ -48,8 +48,7 @@
 			</Polygon>
 		</Placemark>
 		<Placemark>
-			<name>SJC Landing 13:0-2000 070-250</name>
-			<visibility>0</visibility>
+			<name>SJC Landing 12:0-2000 070-250</name>
 			<styleUrl>#m_ylw-pushpin</styleUrl>
 			<Polygon>
 				<tessellate>1</tessellate>

@@ -16,7 +16,7 @@ import time
 
 import adsb_receiver
 from dialog import Dialog
-from dbg import dbg, set_dbg_level
+from dbg import dbg, set_dbg_level, log
 from bboxes import Bboxes
 from flight import Flight
 
@@ -163,13 +163,16 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description="match flights against kml bounding boxes")
     parser.add_argument("-v", "--verbose", action="store_true")
+    parser.add_argument("-d", "--debug", action="store_true")
     parser.add_argument('file', nargs='+', help="kml files to use")
     parser.add_argument('--ipaddr', help="IP address to connect to", required=True)
     parser.add_argument('--port', help="port to connect to", required=True)
     args = parser.parse_args()
 
+    if args.debug: set_dbg_level(2)
+    elif args.verbose: set_dbg_level(1)
+
     bboxes_list = []
-    if args.verbose: set_dbg_level(True)
     for f in args.file:
         bboxes_list.append(Bboxes(f))
 

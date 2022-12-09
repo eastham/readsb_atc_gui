@@ -30,22 +30,24 @@ class Bboxes:
         self.parse_placemarks(features)
 
     def parse_placemarks(self, document):
-        polygon_ctr = 0
         for feature in document:
           if isinstance(feature, kml.Placemark):
-            re_result = re.search(r"([\w\d\s]+):\s*(\d+)-(\d+) (\d+)-(\d+)", feature.name)
-            if not re_result: raise ValueError("kml parse error: " + feature.name)
+            re_result = re.search(r"([\w\d\s]+):\s*(\d+)-(\d+) (\d+)-(\d+)",
+                feature.name)
+            if not re_result:
+                raise ValueError("KML feature name parse error: " +
+                    feature.name)
             name = re_result.group(1)
             minalt = int(re_result.group(2))
             maxalt = int(re_result.group(3))
             starthdg = int(re_result.group(4))
             endhdg = int(re_result.group(5))
 
-            dbg("Using Bounding Box %s: %d-%d %d-%d deg" % (name,minalt,maxalt,starthdg,endhdg))
+            dbg("Adding bounding box %s: %d-%d %d-%d deg" %
+                (name,minalt,maxalt,starthdg,endhdg))
             newbox = Bbox(polygon=Polygon(feature.geometry),
                 minalt=minalt, maxalt=maxalt, starthdg=starthdg,
                 endhdg=endhdg, name=name)
-            polygon_ctr += 1
             self.boxes.append(newbox)
         for feature in document:
           if isinstance(feature, kml.Folder):
@@ -64,9 +66,8 @@ class Bboxes:
     def contains(self, lat, long, hdg, alt):
         "returns index of first matching bounding box, or -1 if not found"
         for i, box in enumerate(self.boxes):
-            # print(pp.pprint(box))
-            if box.polygon.contains(Point(long,lat)) and self.hdg_contains(hdg, box.starthdg, box.endhdg):
+            if (box.polygon.contains(Point(long,lat)) and
+                self.hdg_contains(hdg, box.starthdg, box.endhdg)):
                 if (alt > box.minalt and alt < box.maxalt):
                     return i
         return -1
-        # XXX alt not handled yet

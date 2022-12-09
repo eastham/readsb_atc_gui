@@ -4,8 +4,9 @@ from typing import Optional
 import time
 import statistics
 
+from geopy import distance
 import bboxes
-from dbg import dbg
+from dbg import dbg, log
 
 @dataclass
 class Location:
@@ -40,10 +41,8 @@ class Location:
         return s
 
     def __sub__(self, other):
-        return Location(lat=self.lat - other.lat,
-                        lon=self.lon - other.lon,
-                        alt_baro=self.alt_baro - other.alt_baro,
-                        now=self.now - other.now)
+        """Return distance between two Locations in nm"""
+        return distance.distance((self.lat, self.lon), (other.lat, other.lon)).nm
 
     def __lt__(self, other):
         return self.alt_baro < other.alt_baro
@@ -113,8 +112,7 @@ class Flight:
                 self.inside_bboxes[i] = new_bbox
 
         if changes:
-            logline = "Flight bbox change: " + self.to_str()
-            dbg(logline)
+            log("Flight bbox change: " + self.to_str())
 
     def get_bbox_at_level(self, level, bboxes_list):
         inside_n = self.inside_bboxes[level]
