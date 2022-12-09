@@ -1,7 +1,8 @@
 import datetime
+import pprint
 
 debug_level = False
-TEST = True
+pp = pprint.PrettyPrinter(indent=4)
 
 def set_dbg_level(l):
     global debug_level
@@ -20,6 +21,6 @@ def do_log(args, kvargs):
     print(dt.strftime("%H:%M:%S: "), end='')
     print(*args, **kvargs)
 
-def run_test(f):
-    if TEST:
-        f()
+def ppdbg(arg):
+    if debug_level > 1:
+        pp.pprint(arg)

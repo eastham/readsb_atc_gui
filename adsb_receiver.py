@@ -1,19 +1,15 @@
 import dataclasses
 import socket
 import threading
-from functools import partial
-import pprint
 import json
 import signal
 import time
 from typing import Dict
 
 from bboxes import Bboxes
-from dbg import dbg, run_test, set_dbg_level, log
+from dbg import dbg, set_dbg_level, log
 from flight import Flight, Location
-from test import test_insert
-
-pp = pprint.PrettyPrinter(indent=4)
+from test import test_insert, tests_enable, run_test
 
 class Flights:
     """all Flight objects in the system, indexed by flight_id"""
@@ -150,6 +146,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="match flights against kml bounding boxes")
     parser.add_argument("-d", "--debug", action="store_true")
+    parser.add_argument('--test', help="add some test flights", action="store_true")
     parser.add_argument('file', nargs='+', help="kml files to use")
     parser.add_argument('--ipaddr', help="IP address to connect to", required=True)
     parser.add_argument('--port', help="port to connect to", required=True)
@@ -157,6 +154,7 @@ if __name__ == "__main__":
 
     if args.debug: set_dbg_level(2)
     else: set_dbg_level(1)
+    if args.test: tests_enable()
 
     bboxes_list = []
     for f in args.file:

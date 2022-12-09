@@ -1,8 +1,18 @@
 from dbg import dbg
 from flight import Flight, Location
 import time
+
 boot_time = time.time()
 last_test_uptime = 0
+do_tests = False
+
+def tests_enable():
+    global do_tests
+    do_tests = True
+
+def run_test(f):
+    if do_tests:
+        f()
 
 def test_insert(flights, update_cb):
     global last_test_uptime
