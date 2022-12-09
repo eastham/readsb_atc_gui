@@ -1,4 +1,4 @@
-from dbg import dbg, test
+from dbg import dbg
 from flight import Flight, Location
 import time
 boot_time = time.time()

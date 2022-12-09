@@ -11,19 +11,9 @@
             id: arrivals
             cols: 1
             HeaderButton:
-                text: "Arrivals (add)"
                 on_press: root.do_add_click(1)
                 background_color: 0,.5,0,1
-            MyScrollView:
-                size_hint_y: 10
-                id: scroll_1
-
-        GridLayout:
-            cols: 1
-            HeaderButton:
-                text: "Departures (add)"
-                on_press: root.do_add_click(0)
-                background_color: 1,.3,.3,1
+                id: title_0
             MyScrollView:
                 size_hint_y: 10
                 id: scroll_0
@@ -31,9 +21,19 @@
         GridLayout:
             cols: 1
             HeaderButton:
-                text: "Scenic (add)"
+                on_press: root.do_add_click(0)
+                background_color: 1,.3,.3,1
+                id: title_1
+            MyScrollView:
+                size_hint_y: 10
+                id: scroll_1
+
+        GridLayout:
+            cols: 1
+            HeaderButton:
                 on_press: root.do_add_click(2)
                 background_color: .3,.3,1,1
+                id: title_2
             MyScrollView:
                 size_hint_y: 10
                 id: scroll_2
@@ -41,8 +41,8 @@
         GridLayout:
             cols: 1
             HeaderButton:
-                text: "Other"
                 background_color: .3,.3,1,1
+                id: title_3
             MyScrollView:
                 size_hint_y: 10
                 id: scroll_3

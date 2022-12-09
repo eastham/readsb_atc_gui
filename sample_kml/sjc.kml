@@ -32,9 +32,11 @@
 	</Style>
 	<Folder>
 		<name>sjc</name>
+		<visibility>0</visibility>
 		<open>1</open>
 		<Placemark>
-			<name>takeoff 31:0-2000 250-070</name>
+			<name>SJC Takeoff 31:0-2000 250-070</name>
+			<visibility>0</visibility>
 			<styleUrl>#m_ylw-pushpin</styleUrl>
 			<Polygon>
 				<tessellate>1</tessellate>
@@ -48,7 +50,8 @@
 			</Polygon>
 		</Placemark>
 		<Placemark>
-			<name>land 31:0-3000 250-070</name>
+			<name>SJC Land 31:0-3000 250-070</name>
+			<visibility>0</visibility>
 			<styleUrl>#m_ylw-pushpin</styleUrl>
 			<Polygon>
 				<tessellate>1</tessellate>
@@ -62,7 +65,8 @@
 			</Polygon>
 		</Placemark>
 		<Placemark>
-			<name>pao:0-2000 0-360</name>
+			<name>PAO Pattern:0-2000 0-360</name>
+			<visibility>0</visibility>
 			<styleUrl>#m_ylw-pushpin</styleUrl>
 			<Polygon>
 				<tessellate>1</tessellate>
@@ -76,7 +80,8 @@
 			</Polygon>
 		</Placemark>
 		<Placemark>
-			<name>other:0-10000 0-360</name>
+			<name>Other nearby:0-10000 0-360</name>
+			<visibility>0</visibility>
 			<styleUrl>#m_ylw-pushpin</styleUrl>
 			<Polygon>
 				<tessellate>1</tessellate>

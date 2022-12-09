@@ -13,6 +13,6 @@ def dbg(*args, **kvargs):
         print(dt.strftime("%H:%M:%S: "), end='')
         print(*args, **kvargs)
 
-def test(f):
+def run_test(f):
     if TEST:
         f()

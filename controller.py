@@ -16,7 +16,7 @@ import time
 
 import adsb_receiver
 from dialog import Dialog
-from dbg import dbg, test, set_dbg_level
+from dbg import dbg, set_dbg_level
 from bboxes import Bboxes
 from flight import Flight
 
@@ -66,11 +66,13 @@ class FlightStrip(Button):
         self.get_scrollview().add_widget(self, index=100)
 
 class ControllerApp(MDApp):
-    def __init__(self):
+    def __init__(self, bboxes):
         dbg("controller init")
         self.strips = {}    # dict of FlightStrips by id
         self.dialog = None
-        self.OMIT_INDEX = 3  # don't move strips to this index
+        self.OMIT_INDEX = 3  # don't move strips TO this scrollview index.  XXX move to KML?
+        self.MAX_SCROLLVIEWS = 4
+        self.bboxes = bboxes
 
         super().__init__()
 
@@ -79,8 +81,20 @@ class ControllerApp(MDApp):
         self.controller = Controller()
         self.dialog = Dialog()
         self.theme_cls.theme_style="Dark"
+        self.setup_titles()
         dbg("controller build done")
         return self.controller
+
+    def get_title_button_by_index(self, index):
+        title_id = "title_%d" % index
+        return self.controller.ids[title_id]
+
+    def setup_titles(self):
+        """Set GUI title bars according to bbox/KML titles"""
+        for i, bbox in enumerate(self.bboxes.boxes):
+            title_button = self.get_title_button_by_index(i)
+            title_button.text = bbox.name
+            if i >= self.MAX_SCROLLVIEWS-1: return
 
     @mainthread
     def update_strip(self, flight):
@@ -163,7 +177,7 @@ if __name__ == '__main__':
     signal.signal(signal.SIGINT, sigint_handler)
     listen_socket = adsb_receiver.setup(args.ipaddr, args.port)
 
-    controllerapp = ControllerApp()
+    controllerapp = ControllerApp(bboxes_list[0])
     read_thread = threading.Thread(target=adsb_receiver.flight_read_loop,
         args=[listen_socket, bboxes_list, controllerapp.update_strip, controllerapp.remove_strip])
     Clock.schedule_once(lambda x: read_thread.start(), 2)

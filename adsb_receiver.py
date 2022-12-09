@@ -11,9 +11,10 @@ import pprint
 import json
 import signal
 import time
+from typing import Dict
 
 from bboxes import Bboxes
-from dbg import dbg, test, set_dbg_level
+from dbg import dbg, run_test, set_dbg_level
 from flight import Flight, Location
 from test import test_insert
 
@@ -21,11 +22,12 @@ pp = pprint.PrettyPrinter(indent=4)
 
 class Flights:
     """all Flight objects in the system, indexed by flight_id"""
+    dict: Dict[str, Flight] = {}
+    lock: threading.Lock = threading.Lock()
+    EXPIRE_SECS: int = 15
+
     def __init__(self, bboxes):
-        self.dict = {}      # dict of Flight by flight id
         self.bboxes = bboxes
-        self.lock = threading.Lock()
-        self.EXPIRE_SECS = 15
 
     def add_location(self, loc: Location, new_flight_cb, update_flight_cb):
         """
@@ -34,7 +36,7 @@ class Flights:
 
         loc: Location/flight info to update
         new_flight_cb(flight): called if loc is a new flight and just added to the database.
-        update_flight_cb(flight): called when the position of loc is updated.
+        update_flight_cb(flight): called when a flight position is updated.
         """
         flight_id = loc.flight
         if flight_id == "N/A": return
@@ -86,12 +88,9 @@ class Flights:
         self.lock.release()
 
 class TCPConnection:
-    def __init__(self, sock=None):
-        if sock is None:
-            self.sock = socket.socket(
-                            socket.AF_INET, socket.SOCK_STREAM)
-        else:
-            self.sock = sock
+    def __init__(self):
+        self.sock = socket.socket(
+                        socket.AF_INET, socket.SOCK_STREAM)
 
     def connect(self, host, port):
         try:
@@ -110,17 +109,18 @@ def sigint_handler(signum, frame):
     exit(1)
 
 def setup(ipaddr, port):
-    print("Connecting to %s:%d" % (ipaddr,int(port)))
+    print("Connecting to %s:%d" % (ipaddr, int(port)))
+
     signal.signal(signal.SIGINT, sigint_handler)
     listen = TCPConnection()
     listen.connect(ipaddr, int(port)) # '192.168.87.60',30666)
-    lastupdate = 0
+
     dbg("Setup done")
     return listen
 
 def flight_update_read(flights, listen, update_cb):
     line = listen.readline()
-    # print(line)
+
     jsondict = json.loads(line)
     # pp.pprint(jsondict)
 
@@ -133,10 +133,12 @@ def flight_read_loop(listen, bbox_list, update_cb, expire_cb): # need two callba
 
     while True:
         flight_update_read(flights, listen, update_cb)
+
         if time.time() - last_expire > 1:
             flights.expire_old(expire_cb)
             last_expire = time.time()
-        test(lambda: test_insert(flights, update_cb))
+
+        run_test(lambda: test_insert(flights, update_cb))
 
 if __name__ == "__main__":
     # No-GUI mode, see controller.py for GUI
@@ -156,4 +158,5 @@ if __name__ == "__main__":
         bboxes_list.append(Bboxes(f))
 
     listen = setup(args.ipaddr, args.port)
+
     flight_read_loop(listen, bboxes_list, None, None)
