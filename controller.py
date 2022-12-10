@@ -6,6 +6,7 @@ Config.set('graphics', 'height', '800')
 from kivy.clock import Clock, mainthread
 from kivymd.app import MDApp
 from kivy.uix.floatlayout import FloatLayout
+from kivy.uix.gridlayout import GridLayout
 from kivy.uix.button import Button
 from kivy.app import App
 from kivy.properties import ObjectProperty, StringProperty
@@ -13,6 +14,8 @@ from kivy.properties import ObjectProperty, StringProperty
 import signal
 import threading
 import time
+import webbrowser
+import argparse
 
 import adsb_receiver
 from dialog import Dialog
@@ -20,6 +23,7 @@ from dbg import dbg, set_dbg_level, log
 from test import tests_enable
 from bboxes import Bboxes
 from flight import Flight
+from displaywindow import DisplayWindow
 
 controllerapp = None
 
@@ -27,22 +31,48 @@ class Controller(FloatLayout):
     def do_add_click(self, n):
         dbg("add click %d" % n)
 
-class FlightStrip(Button):
-    def __init__(self, index, app, id):
+class FlightStrip:
+    def __init__(self, index, app, id, focus_q):
         self.scrollview_index = index
+        self.app = app
+        self.id = id
+        self.focus_q = focus_q
+
         self.top_string = None
         self.note_string = ""
         self.alt_string = ""
         self.loc_string = ""
-        self.id = id
-        self.app = app
-        super().__init__()
 
-    def do_click(self):
+        self.layout = GridLayout(cols=2, row_default_height=100, size_hint_y=None)
+        self.main_button = Button(size_hint_x=None, padding=(10,10),
+            text_size=(500,110), width=500, height=110, halign="left",
+            valign="top", on_release=self.main_button_click)
+
+        self.right_layout = GridLayout(rows=2)
+
+        self.focus_button = Button(text='Focus', size_hint_x=None, width=100,
+            on_release=self.focus_click)
+        self.web_button = Button(text='Web', size_hint_x=None, width=100,
+            on_release=self.web_click)
+
+        self.layout.add_widget(self.main_button)
+        self.layout.add_widget(self.right_layout)
+        self.right_layout.add_widget(self.focus_button)
+        self.right_layout.add_widget(self.web_button)
+
+    def main_button_click(self, arg):
         controllerapp.dialog.show_custom_dialog(self.app, self.id)
 
+    def web_click(self, arg):
+        webbrowser.open("https://flightaware.com/live/flight/" + self.id)
+
+    def focus_click(self, arg):
+        dbg("focus " + self.id)
+        if self.focus_q: self.focus_q.put(self.id)
+
     def update_strip_text(self):
-        self.text = self.top_string + " " + self.loc_string + "\n" + self.alt_string + "\n" + self.note_string
+        self.main_button.text = (self.top_string + " " + self.loc_string +
+            "\n" + self.alt_string + " " + self.note_string)
 
     def get_scrollview(self):
         scrollbox_name = "scroll_%d" % self.scrollview_index
@@ -60,19 +90,20 @@ class FlightStrip(Button):
         self.update_strip_text()
 
     def unrender(self):
-        self.get_scrollview().remove_widget(self)
+        self.get_scrollview().remove_widget(self.layout)
 
     def render(self):
-        self.get_scrollview().add_widget(self, index=100)
+        self.get_scrollview().add_widget(self.layout, index=100)
 
 class ControllerApp(MDApp):
-    def __init__(self, bboxes):
+    def __init__(self, bboxes, focus_q):
         dbg("controller init")
         self.strips = {}    # dict of FlightStrips by id
         self.dialog = None
         self.OMIT_INDEX = 3  # don't move strips TO this scrollview index.  XXX move to KML?
         self.MAX_SCROLLVIEWS = 4
         self.bboxes = bboxes
+        self.focus_q = focus_q
 
         super().__init__()
 
@@ -120,7 +151,7 @@ class ControllerApp(MDApp):
                 return # not in a tracked region now, don't add it
             # location is inside one of our tracked regions, add new strip
             dbg("new flightstrip %s" % id)
-            strip = FlightStrip(new_scrollview_index, self, id)
+            strip = FlightStrip(new_scrollview_index, self, id, self.focus_q)
             strip.update(flight, flight.lastloc, flight.bboxes_list)
             strip.render()
             self.set_strip_color(id, (1,.7,.7))  # highlight new strip
@@ -159,9 +190,7 @@ class ControllerApp(MDApp):
 def sigint_handler(signum, frame):
     exit(1)
 
-if __name__ == '__main__':
-    import argparse
-
+def run(focus_q):
     parser = argparse.ArgumentParser(description="match flights against kml bounding boxes")
     parser.add_argument("-v", "--verbose", action="store_true")
     parser.add_argument("-d", "--debug", action="store_true")
@@ -169,6 +198,7 @@ if __name__ == '__main__':
     parser.add_argument('file', nargs='+', help="kml files to use")
     parser.add_argument('--ipaddr', help="IP address to connect to", required=True)
     parser.add_argument('--port', help="port to connect to", required=True)
+
     args = parser.parse_args()
 
     if args.debug: set_dbg_level(2)
@@ -182,10 +212,14 @@ if __name__ == '__main__':
     signal.signal(signal.SIGINT, sigint_handler)
     listen_socket = adsb_receiver.setup(args.ipaddr, args.port)
 
-    controllerapp = ControllerApp(bboxes_list[0])
+    global controllerapp
+    controllerapp = ControllerApp(bboxes_list[0], focus_q)
     read_thread = threading.Thread(target=adsb_receiver.flight_read_loop,
         args=[listen_socket, bboxes_list, controllerapp.update_strip, controllerapp.remove_strip])
     Clock.schedule_once(lambda x: read_thread.start(), 2)
 
     dbg("Starting main loop")
     controllerapp.run()
+
+if __name__ == '__main__':
+    run()
