@@ -1,0 +1,5 @@
+tar1090:
+  host: 192.168.87.60
+
+admin:
+  enable: false
