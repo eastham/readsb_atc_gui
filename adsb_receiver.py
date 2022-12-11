@@ -30,7 +30,7 @@ class Flights:
         update_flight_cb(flight): called when a flight position is updated.
         """
         flight_id = loc.flight
-        if flight_id == "N/A": return
+        if not flight_id or flight_id == "N/A": return None
 
         self.lock.acquire()
 
@@ -54,14 +54,13 @@ class Flights:
             if update_flight_cb: update_flight_cb(flight)
 
         self.lock.release()
-
         return flight
 
-    def expire_old(self, expire_cb):
+    def expire_old(self, expire_cb, last_read_time):
         self.lock.acquire()
         for f in list(self.flight_dict):
             flight = self.flight_dict[f]
-            if (time.time() - flight.lastloc.now > self.EXPIRE_SECS):
+            if (last_read_time - flight.lastloc.now > self.EXPIRE_SECS):
                 if flight.in_any_bbox(): log("Expiring flight: %s" % f)
                 if expire_cb: expire_cb(flight)
                 del self.flight_dict[f]
@@ -126,7 +125,6 @@ def setup(ipaddr, port):
     return listen
 
 def flight_update_read(flights, listen, update_cb):
-
     try:
         line = listen.readline()
         jsondict = json.loads(line)
@@ -134,21 +132,26 @@ def flight_update_read(flights, listen, update_cb):
         print("Socket input/parse error, attempting to reconnect...")
         listen.connect()
         return
-    # ppdbg(jsondict)
+    #ppdbg(jsondict)
 
     loc_update = Location.from_dict(jsondict)
     flight = flights.add_location(loc_update, update_cb, update_cb)
+    if flight:
+        return int(flight.lastloc.now)
+    else:
+        return 0
 
 def flight_read_loop(listen, bbox_list, update_cb, expire_cb): # need two callbacks, one to add one to remove
-    last_expire = time.time()
+    last_expire = 0
     flights = Flights(bbox_list)
 
     while True:
-        flight_update_read(flights, listen, update_cb)
-
-        if time.time() - last_expire > 1:
-            flights.expire_old(expire_cb)
-            last_expire = time.time()
+        last_read_time = flight_update_read(flights, listen, update_cb)
+        if not last_expire: last_expire = last_read_time
+        # XXX maybe refine time here
+        if last_read_time and last_read_time - last_expire > 1:
+            flights.expire_old(expire_cb, last_read_time)
+            last_expire = last_read_time
 
             flights.check_distance()
 

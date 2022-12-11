@@ -29,6 +29,7 @@ class AdminWindow:
 
     def focus(self, flight_id):
         key = self.appsheet.id_to_key(flight_id)
+
         if key and len(key):
             call = ("window.location.href = '" +
                 self.config.private_vars['appsheet']['focus_url'] +

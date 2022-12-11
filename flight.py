@@ -25,6 +25,7 @@ class Location:
         if not isinstance(self.lon, float): self.lon = 0
         if not isinstance(self.alt_baro, int): self.alt_baro = 0
         if not isinstance(self.gs, int): self.gs = 0
+        if not isinstance(self.track, float): self.track = 0.
 
     @classmethod
     def from_dict(cl, d: dict):

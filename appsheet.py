@@ -32,12 +32,14 @@ class Appsheet:
                 self.config.private_vars["appsheet"]["piloturl"],
                 headers=self.headers, json=body)
             response_dict = json.loads(response.text)
+            # ppd(response_dict[0])
             return response_dict[0][field]
         except:
+            log("No match for Appsheet field %s on id %s" % (field, id))
             return ""
 
     def id_to_key(self, id):
-        self.id_to_field(id, "Key")
+        return self.id_to_field(id, "Key")
 
     def id_to_code(self, id):
-        self.id_to_field(id, "Pilot Code")
+        return self.id_to_field(id, "Pilot Code")
