@@ -1,16 +1,22 @@
 import webview
 import threading
 import time
+import signal
+
+from config import Config
 
 class DisplayWindow:
-    def __init__(self, q, host):
+    def __init__(self, q):
         self.q = q
         self.window = None
 
+        config = Config()
         self.webview_thread = threading.Thread(target=self.focus_listener)
         self.webview_thread.start()
         self.window = webview.create_window('ADS-B display',
-            "http://%s/tar1090/" % host)
+            "http://%s/tar1090/" % config.vars["tar1090"]["host"])
+
+        signal.signal(signal.SIGINT, lambda x,y: exit(1))
 
         webview.start()
 

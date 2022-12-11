@@ -32,24 +32,27 @@ class Controller(FloatLayout):
         dbg("add click %d" % n)
 
 class FlightStrip:
-    def __init__(self, index, app, id, focus_q):
+    def __init__(self, index, app, id, focus_q, admin_q):
         self.scrollview_index = index
         self.app = app
         self.id = id
         self.focus_q = focus_q
+        self.admin_q = admin_q
 
         self.top_string = None
         self.note_string = ""
         self.alt_string = ""
         self.loc_string = ""
 
-        self.layout = GridLayout(cols=2, row_default_height=100, size_hint_y=None)
+        self.layout = GridLayout(cols=2, row_default_height=150, height=150, size_hint_y=None)
         self.main_button = Button(size_hint_x=None, padding=(10,10),
-            text_size=(500,110), width=500, height=110, halign="left",
+            text_size=(500,110), width=500, height=225, halign="left",
             valign="top", on_release=self.main_button_click)
 
-        self.right_layout = GridLayout(rows=2)
+        self.right_layout = GridLayout(rows=3, row_default_height=50)
 
+        self.admin_button = Button(text='Admin', size_hint_x=None, width=100,
+            on_release=self.admin_click)
         self.focus_button = Button(text='Focus', size_hint_x=None, width=100,
             on_release=self.focus_click)
         self.web_button = Button(text='Web', size_hint_x=None, width=100,
@@ -57,11 +60,16 @@ class FlightStrip:
 
         self.layout.add_widget(self.main_button)
         self.layout.add_widget(self.right_layout)
+        self.right_layout.add_widget(self.admin_button)
         self.right_layout.add_widget(self.focus_button)
         self.right_layout.add_widget(self.web_button)
 
     def main_button_click(self, arg):
         controllerapp.dialog.show_custom_dialog(self.app, self.id)
+
+    def admin_click(self, arg):
+        dbg("admin " + self.id)
+        if self.admin_q: self.admin_q.put(self.id)
 
     def web_click(self, arg):
         webbrowser.open("https://flightaware.com/live/flight/" + self.id)
@@ -96,7 +104,7 @@ class FlightStrip:
         self.get_scrollview().add_widget(self.layout, index=100)
 
 class ControllerApp(MDApp):
-    def __init__(self, bboxes, focus_q):
+    def __init__(self, bboxes, focus_q, admin_q):
         dbg("controller init")
         self.strips = {}    # dict of FlightStrips by id
         self.dialog = None
@@ -104,6 +112,7 @@ class ControllerApp(MDApp):
         self.MAX_SCROLLVIEWS = 4
         self.bboxes = bboxes
         self.focus_q = focus_q
+        self.admin_q = admin_q
 
         super().__init__()
 
@@ -151,7 +160,7 @@ class ControllerApp(MDApp):
                 return # not in a tracked region now, don't add it
             # location is inside one of our tracked regions, add new strip
             dbg("new flightstrip %s" % id)
-            strip = FlightStrip(new_scrollview_index, self, id, self.focus_q)
+            strip = FlightStrip(new_scrollview_index, self, id, self.focus_q, self.admin_q)
             strip.update(flight, flight.lastloc, flight.bboxes_list)
             strip.render()
             self.set_strip_color(id, (1,.7,.7))  # highlight new strip
@@ -190,7 +199,7 @@ class ControllerApp(MDApp):
 def sigint_handler(signum, frame):
     exit(1)
 
-def run(focus_q):
+def run(focus_q, admin_q):
     parser = argparse.ArgumentParser(description="match flights against kml bounding boxes")
     parser.add_argument("-v", "--verbose", action="store_true")
     parser.add_argument("-d", "--debug", action="store_true")
@@ -200,7 +209,6 @@ def run(focus_q):
     parser.add_argument('--port', help="port to connect to", required=True)
 
     args = parser.parse_args()
-
     if args.debug: set_dbg_level(2)
     elif args.verbose: set_dbg_level(1)
     if args.test: tests_enable()
@@ -213,7 +221,7 @@ def run(focus_q):
     listen_socket = adsb_receiver.setup(args.ipaddr, args.port)
 
     global controllerapp
-    controllerapp = ControllerApp(bboxes_list[0], focus_q)
+    controllerapp = ControllerApp(bboxes_list[0], focus_q, admin_q)
     read_thread = threading.Thread(target=adsb_receiver.flight_read_loop,
         args=[listen_socket, bboxes_list, controllerapp.update_strip, controllerapp.remove_strip])
     Clock.schedule_once(lambda x: read_thread.start(), 2)
@@ -222,4 +230,4 @@ def run(focus_q):
     controllerapp.run()
 
 if __name__ == '__main__':
-    run()
+    run(None, None)

@@ -7,7 +7,7 @@ import time
 from typing import Dict
 
 from bboxes import Bboxes
-from dbg import dbg, set_dbg_level, log
+from dbg import dbg, set_dbg_level, log, ppdbg
 from flight import Flight, Location
 from test import test_insert, tests_enable, run_test
 
@@ -134,7 +134,7 @@ def flight_update_read(flights, listen, update_cb):
         print("Socket input/parse error, attempting to reconnect...")
         listen.connect()
         return
-    # pp.pprint(jsondict)
+    # ppdbg(jsondict)
 
     loc_update = Location.from_dict(jsondict)
     flight = flights.add_location(loc_update, update_cb, update_cb)

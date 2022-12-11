@@ -24,3 +24,6 @@ def do_log(args, kvargs):
 def ppdbg(arg):
     if debug_level > 1:
         pp.pprint(arg)
+
+def ppd(arg):
+    pp.pprint(arg)
