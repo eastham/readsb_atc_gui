@@ -3,10 +3,13 @@ from dataclasses import dataclass, field, InitVar
 from typing import Optional
 import time
 import statistics
+import collections
+import typing
 
 from geopy import distance
 import bboxes
 from dbg import dbg, log
+from icao_nnumber_converter_us import n_to_icao, icao_to_n
 
 @dataclass
 class Location:
@@ -16,6 +19,8 @@ class Location:
     alt_baro: int = 0
     now: Optional[float] = 0
     flight: Optional[str] = "N/A" # the flight id
+    hex: Optional[str] = None   # ICAO code
+    tail: Optional[str] = None # N-number from ICAO code
     gs: Optional[float] = 0
     track: float = 0.
 
@@ -33,6 +38,10 @@ class Location:
         for f in dataclasses.fields(Location):
             if f.name in d:
                 nd[f.name] = d[f.name]
+
+        if "hex" in d:
+            tail = icao_to_n(d["hex"])
+            if tail: nd["tail"] = tail
 
         return Location(**nd)
 
@@ -55,6 +64,7 @@ class Location:
 class Flight:
     """Summary of a series of locations, plus other annotations"""
     flight_id: str
+    tail: str
     firstloc: Location
     lastloc: Location
     bboxes_list: list = field(default_factory=list)
@@ -104,7 +114,10 @@ class Flight:
             altchangestr = "v"
         return altchangestr
 
-    def update_inside_bboxes(self, bbox_list, loc):
+    def update_loc(self, loc):
+        self.lastloc = loc
+
+    def update_inside_bboxes(self, bbox_list, loc, change_cb):
         changes = False
         for i, bbox in enumerate(bbox_list):
             new_bbox = bbox_list[i].contains(loc.lat, loc.lon, loc.track, loc.alt_baro)
@@ -114,6 +127,7 @@ class Flight:
 
         if changes:
             log("Flight bbox change: " + self.to_str())
+            if change_cb: change_cb(self, self.to_str())
 
     def get_bbox_at_level(self, level, bboxes_list):
         inside_n = self.inside_bboxes[level]

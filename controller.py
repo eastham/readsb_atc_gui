@@ -43,11 +43,12 @@ class FlightStrip:
         self.note_string = ""
         self.alt_string = ""
         self.loc_string = ""
+        self.deanno_event = None
 
         self.layout = GridLayout(cols=2, row_default_height=150, height=150, size_hint_y=None)
         self.main_button = Button(size_hint_x=None, padding=(10,10),
             text_size=(500,110), width=500, height=225, halign="left",
-            valign="top", on_release=self.main_button_click)
+            valign="top", markup=True, on_release=self.main_button_click)
 
         self.right_layout = GridLayout(rows=3, row_default_height=50)
 
@@ -87,7 +88,7 @@ class FlightStrip:
         return self.app.controller.ids[scrollbox_name].children[0]
 
     def update(self, flight, location, bboxes_list):
-        self.top_string = flight.flight_id
+        self.top_string = "[b][size=34]%s[/size][/b]" % flight.flight_id
 
         bbox_2nd_level = flight.get_bbox_at_level(1, bboxes_list)
         self.loc_string = bbox_2nd_level.name if bbox_2nd_level else ""
@@ -97,11 +98,36 @@ class FlightStrip:
 
         self.update_strip_text()
 
+    def set_highlight(self):
+        self.main_button.background_color = (1,.7,.7)
+        Clock.schedule_once(lambda dt: self.set_normal(), 5)
+
+    def set_normal(self):
+        self.main_button.background_color = (.8,.4,.4)
+
     def unrender(self):
         self.get_scrollview().remove_widget(self.layout)
 
     def render(self):
         self.get_scrollview().add_widget(self.layout, index=100)
+
+    def annotate(self, note):
+        print("**** annotate " + note)
+
+        self.note_string = note
+        if self.deanno_event:
+            Clock.unschedule(self.deanno_event)
+        self.deanno_event = Clock.schedule_once(lambda dt: self.deannotate(), 5)
+        self.main_button.background_color = (1,1,0)
+
+        self.update_strip_text()
+
+    def deannotate(self):
+        self.note_string = ""
+        self.set_normal()
+        self.update_strip_text()
+
+
 
 class ControllerApp(MDApp):
     def __init__(self, bboxes, focus_q, admin_q):
@@ -159,12 +185,10 @@ class ControllerApp(MDApp):
             if new_scrollview_index < 0:
                 return # not in a tracked region now, don't add it
             # location is inside one of our tracked regions, add new strip
-            dbg("new flightstrip %s" % id)
             strip = FlightStrip(new_scrollview_index, self, id, self.focus_q, self.admin_q)
             strip.update(flight, flight.lastloc, flight.bboxes_list)
             strip.render()
-            self.set_strip_color(id, (1,.7,.7))  # highlight new strip
-            Clock.schedule_once(lambda dt: self.set_strip_color(id, (.8,.4,.4)), 5)
+            strip.set_highlight()
 
             self.strips[id] = strip
 
@@ -185,7 +209,7 @@ class ControllerApp(MDApp):
             strip = self.strips[id]
         except:
             return
-        strip.note_string = note
+        strip.annotate(note)
         strip.update_strip_text()
 
     @mainthread
@@ -223,7 +247,8 @@ def run(focus_q, admin_q):
     global controllerapp
     controllerapp = ControllerApp(bboxes_list[0], focus_q, admin_q)
     read_thread = threading.Thread(target=adsb_receiver.flight_read_loop,
-        args=[listen_socket, bboxes_list, controllerapp.update_strip, controllerapp.remove_strip])
+        args=[listen_socket, bboxes_list, controllerapp.update_strip,
+        controllerapp.remove_strip, controllerapp.annotate_strip, None])
     Clock.schedule_once(lambda x: read_thread.start(), 2)
 
     dbg("Starting main loop")
