@@ -15,10 +15,10 @@ class DisplayWindow:
         self.webview_thread.start()
         self.window = webview.create_window('ADS-B display',
             "http://%s/tar1090/" % config.vars["tar1090"]["host"])
-
+#            "http://globe.adsbexchange.com/")
         signal.signal(signal.SIGINT, lambda x,y: exit(1))
 
-        webview.start()
+        webview.start(debug=False)
 
     def focus_listener(self):
         while True:

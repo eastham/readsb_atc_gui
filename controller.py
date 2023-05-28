@@ -19,7 +19,7 @@ import argparse
 
 import adsb_receiver
 from dialog import Dialog
-from dbg import dbg, set_dbg_level, log
+from dbg import dbg, set_dbg_level, get_dbg_level, log
 from test import tests_enable
 from bboxes import Bboxes
 from flight import Flight
@@ -27,17 +27,29 @@ from displaywindow import DisplayWindow
 
 controllerapp = None
 
+USE_APPSHEET = True
+if USE_APPSHEET:
+    import appsheet_api
+    appsheet = appsheet_api.Appsheet()
+else:
+    appsheet = None
+
+IN_PROGRESS = "In progress"
+
 class Controller(FloatLayout):
     def do_add_click(self, n):
         dbg("add click %d" % n)
 
 class FlightStrip:
-    def __init__(self, index, app, id, focus_q, admin_q):
+    def __init__(self, index, app, flight, id, tail, focus_q, admin_q):
         self.scrollview_index = index
         self.app = app
-        self.id = id
+        self.flight = flight
+        self.id = id # redundant to flight?
+        self.tail = tail# redundant to flight?
         self.focus_q = focus_q
         self.admin_q = admin_q
+        self.bg_color_warn = False
 
         self.top_string = None
         self.note_string = ""
@@ -47,7 +59,7 @@ class FlightStrip:
 
         self.layout = GridLayout(cols=2, row_default_height=150, height=150, size_hint_y=None)
         self.main_button = Button(size_hint_x=None, padding=(10,10),
-            text_size=(500,110), width=500, height=225, halign="left",
+            text_size=(500,150), width=500, height=225, halign="left",
             valign="top", markup=True, on_release=self.main_button_click)
 
         self.right_layout = GridLayout(rows=3, row_default_height=50)
@@ -69,29 +81,65 @@ class FlightStrip:
         controllerapp.dialog.show_custom_dialog(self.app, self.id)
 
     def admin_click(self, arg):
-        dbg("admin " + self.id)
-        if self.admin_q: self.admin_q.put(self.id)
+        if self.flight.flags['Row ID'] is IN_PROGRESS:
+            self.update_flight_rowid(self.flight)
+        if self.admin_q: self.admin_q.put(self.flight.flags['Row ID'])
+        return
 
     def web_click(self, arg):
         webbrowser.open("https://flightaware.com/live/flight/" + self.id)
 
     def focus_click(self, arg):
-        dbg("focus " + self.id)
+        print("focus " + self.id)
         if self.focus_q: self.focus_q.put(self.id)
 
     def update_strip_text(self):
         self.main_button.text = (self.top_string + " " + self.loc_string +
-            "\n" + self.alt_string + " " + self.note_string)
+            "\n" + self.alt_string + "\n" + self.note_string)
 
     def get_scrollview(self):
         scrollbox_name = "scroll_%d" % self.scrollview_index
         return self.app.controller.ids[scrollbox_name].children[0]
 
+    def update_flight_rowid(self, flight):
+        dbg("running rowid update thread")
+        if not appsheet: return
+
+        tail = flight.tail if flight.tail else flight.flight_id.strip()
+        try:
+            obj = appsheet.aircraft_lookup(tail, wholeobj=True)
+            if obj:
+                flight.flags['Row ID'] = obj['Row ID']
+
+            if not obj or not obj['Registered online']:
+                self.note_string = "**Unregistered A/C** "
+                self.bg_color_warn = True
+                return
+            flight.flags['Row ID'] = obj['Row ID']
+            self.note_string += "Arrivals=%s" % obj['Arrivals']
+        except:
+            del flight.flags['Row ID']
+            pass
+        self.set_normal()
+        dbg("done running rowid update thread")
+
     def update(self, flight, location, bboxes_list):
-        self.top_string = "[b][size=34]%s[/size][/b]" % flight.flight_id
+        if 'Row ID' not in flight.flags:
+            flight.flags['Row ID'] = IN_PROGRESS
+            t = threading.Thread(target=self.update_flight_rowid, args=[flight])
+            t.start()
+
+        if (flight.flight_id.strip() != flight.tail and flight.tail):
+            extratail = flight.tail
+        else:
+            extratail = ""
+        self.top_string = "[b][size=34]%s %s[/size][/b]" % (flight.flight_id.strip(),
+            extratail)
 
         bbox_2nd_level = flight.get_bbox_at_level(1, bboxes_list)
-        self.loc_string = bbox_2nd_level.name if bbox_2nd_level else ""
+        cliplen = 25-len(flight.flight_id.strip()) - len(extratail)
+        if cliplen < 0: cliplen = 0
+        self.loc_string = bbox_2nd_level.name[0:cliplen] if bbox_2nd_level else ""
 
         altchangestr = flight.get_alt_change_str(location.alt_baro)
         self.alt_string = altchangestr + " " + str(location.alt_baro) + " " + str(int(location.gs))
@@ -103,7 +151,10 @@ class FlightStrip:
         Clock.schedule_once(lambda dt: self.set_normal(), 5)
 
     def set_normal(self):
-        self.main_button.background_color = (.8,.4,.4)
+        if self.bg_color_warn:
+            self.main_button.background_color = (.8,.4,.4)
+        else:
+            self.main_button.background_color = (.4,.8,.4)
 
     def unrender(self):
         self.get_scrollview().remove_widget(self.layout)
@@ -174,6 +225,7 @@ class ControllerApp(MDApp):
 
             if new_scrollview_index < 0:  # no longer in a tracked region
                 # don't move strip but continue to update indefinitely
+                # XXX probably not right behavior
                 return
             if strip.scrollview_index != new_scrollview_index and new_scrollview_index != self.OMIT_INDEX:
                 # move strip to new scrollview
@@ -185,7 +237,8 @@ class ControllerApp(MDApp):
             if new_scrollview_index < 0:
                 return # not in a tracked region now, don't add it
             # location is inside one of our tracked regions, add new strip
-            strip = FlightStrip(new_scrollview_index, self, id, self.focus_q, self.admin_q)
+            strip = FlightStrip(new_scrollview_index, self, flight, id, flight.tail,
+                self.focus_q, self.admin_q)
             strip.update(flight, flight.lastloc, flight.bboxes_list)
             strip.render()
             strip.set_highlight()
@@ -197,18 +250,23 @@ class ControllerApp(MDApp):
     def remove_strip(self, flight):
         try:
             strip = self.strips[flight.flight_id]
-        except:
+        except KeyError:
             return
         dbg("removing flight %s" % flight.flight_id)
         strip.unrender()
         del self.strips[flight.flight_id]
 
     @mainthread
-    def annotate_strip(self, id, note):
+    def annotate_strip(self, flight1, flight2, lat_dist, alt_dist):
+        dbg("annotate strip "+flight1.flight_id)
+        id1 = flight1.flight_id
+        id2 = flight2.flight_id
         try:
-            strip = self.strips[id]
-        except:
+            strip = self.strips[id1]
+        except KeyError:
+            dbg("annotate not found")
             return
+        note = "TRAFFIC ALERT: "+id2
         strip.annotate(note)
         strip.update_strip_text()
 
@@ -216,7 +274,7 @@ class ControllerApp(MDApp):
     def set_strip_color(self, id, color):
         try:
             strip = self.strips[id]
-        except:
+        except KeyError:
             return
         strip.background_color = color
 
@@ -235,12 +293,10 @@ def run(focus_q, admin_q):
     args = parser.parse_args()
     if args.debug: set_dbg_level(2)
     elif args.verbose: set_dbg_level(1)
-    if args.test: tests_enable()
 
     bboxes_list = []
     for f in args.file:
         bboxes_list.append(Bboxes(f))
-
     signal.signal(signal.SIGINT, sigint_handler)
     listen_socket = adsb_receiver.setup(args.ipaddr, args.port)
 

@@ -5,11 +5,14 @@ import time
 import statistics
 import collections
 import typing
+import datetime
+import threading
 
 from geopy import distance
 import bboxes
 from dbg import dbg, log
 from icao_nnumber_converter_us import n_to_icao, icao_to_n
+from threading import Lock
 
 @dataclass
 class Location:
@@ -38,7 +41,7 @@ class Location:
         for f in dataclasses.fields(Location):
             if f.name in d:
                 nd[f.name] = d[f.name]
-
+        # XXX should this be in flight?
         if "hex" in d:
             tail = icao_to_n(d["hex"])
             if tail: nd["tail"] = tail
@@ -46,8 +49,8 @@ class Location:
         return Location(**nd)
 
     def to_str(self):
-        s = "%s: %d MSL %d kts %.4f, %.4f" % (self.flight, self.alt_baro,
-            self.gs, self.lat, self.lon)
+        s = "%s: %d MSL %d deg %.4f, %.4f" % (self.flight, self.alt_baro,
+            self.track, self.lat, self.lon)
         return s
 
     def __sub__(self, other):
@@ -63,13 +66,17 @@ class Location:
 @dataclass
 class Flight:
     """Summary of a series of locations, plus other annotations"""
-    flight_id: str
-    tail: str
+    # Caution when changing: ctor positional args implied
+    flight_id: str  # n number if not flight id
+    tail: str       # can be none
     firstloc: Location
     lastloc: Location
     bboxes_list: list = field(default_factory=list)
+    external_id: str = None # optional, database id for this flight
     alt_list: list = field(default_factory=list)  # last n altitudes we've seen
     inside_bboxes: list = field(default_factory=list)  # most recent bboxes we've been inside, by file
+    threadlock: Lock = field(default_factory=Lock)
+    flags: dict = field(default_factory=lambda: ({}))
     ALT_TRACK_ENTRIES = 5
 
     def __post_init__(self):
@@ -86,6 +93,12 @@ class Flight:
                 bbox_name_list.append(" ")
         string += " " + str(bbox_name_list)
         return string
+
+    def lock(self):
+        self.threadlock.acquire()
+
+    def unlock(self):
+        self.threadlock.release()
 
     def in_any_bbox(self):
         for index in self.inside_bboxes:
@@ -126,7 +139,11 @@ class Flight:
                 self.inside_bboxes[i] = new_bbox
 
         if changes:
-            log("Flight bbox change: " + self.to_str())
+            flighttime = datetime.datetime.fromtimestamp(self.lastloc.now)
+            dt = datetime.datetime.today()
+            tail = self.tail if self.tail else "(unk)"
+            log(tail + " Flight bbox change at " + flighttime.strftime("%H:%M") +
+                ": " + self.to_str())
             if change_cb: change_cb(self, self.to_str())
 
     def get_bbox_at_level(self, level, bboxes_list):

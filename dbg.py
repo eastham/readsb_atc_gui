@@ -8,6 +8,9 @@ def set_dbg_level(l):
     global debug_level
     debug_level = l
 
+def get_dbg_level():
+    return debug_level
+
 def log(*args, **kvargs):
     if debug_level > 0:
         do_log(args, kvargs)

@@ -32,9 +32,11 @@ class Flights:
         """
 
         flight_id = loc.flight
+        # XXX do we always convert from icao?  have seen some aircraft with
+        # empty string for flight_id
         if not flight_id or flight_id == "N/A": return loc.now
 
-        self.lock.acquire()
+        self.lock.acquire() # lock needed since testing can race
 
         if flight_id in self.flight_dict:
             is_new_flight = False
@@ -74,9 +76,10 @@ class Flights:
         Check distance between all bbox'ed aircraft.
         O(n^2), can be expensive, but altitude and bbox limits help..
         """
-        MIN_ALT_SEPARATION = 400
-        MIN_ALT = 4000
-        MIN_DISTANCE = .5   # nautical miles
+        dbg("check_distance")
+        MIN_ALT_SEPARATION = 8000
+        MIN_ALT = 100
+        MIN_DISTANCE = 3   # nautical miles XXX
         MIN_FRESH = 10 # seconds, otherwise not evaluated
         flight_list = list(self.flight_dict.values())
 
@@ -92,13 +95,15 @@ class Flights:
                 if (loc1.alt_baro < MIN_ALT or loc2.alt_baro < MIN_ALT): continue
                 if abs(loc1.alt_baro - loc2.alt_baro) < MIN_ALT_SEPARATION:
                     dist = loc1 - loc2
+
                     if dist < MIN_DISTANCE:
                         print("%s-%s inside minimum distance %.1f nm" %
                             (flight1.flight_id, flight2.flight_id, dist))
                         print("LAT, %f, %f, %d" % (flight1.lastloc.lat, flight1.lastloc.lon, last_read_time))
                         if annotate_cb:
-                            annotate_cb(flight1.flight_id, "TRAFFIC ALERT "+flight2.flight_id)
-                            annotate_cb(flight2.flight_id, "TRAFFIC ALERT "+flight1.flight_id)
+
+                            annotate_cb(flight1, flight2, dist, abs(loc1.alt_baro - loc2.alt_baro))
+                            annotate_cb(flight2, flight1, dist, abs(loc1.alt_baro - loc2.alt_baro))
 
 
 class TCPConnection:
@@ -113,7 +118,7 @@ class TCPConnection:
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.sock.connect((self.host, self.port))
             print('Successful Connection')
-        except:
+        except Exception:
             print('Connection Failed')
             raise
 
@@ -139,7 +144,7 @@ def flight_update_read(flights, listen, update_cb, bbox_change_cb):
     try:
         line = listen.readline()
         jsondict = json.loads(line)
-    except:
+    except Exception as e:
         print("Socket input/parse error, attempting to reconnect...")
         listen.connect()
         return
@@ -149,10 +154,13 @@ def flight_update_read(flights, listen, update_cb, bbox_change_cb):
     last_ts = flights.add_location(loc_update, update_cb, update_cb, bbox_change_cb)
     return last_ts
 
-def flight_read_loop(listen, bbox_list, update_cb, expire_cb, annotate_cb, bbox_change_cb):
-    last_checkpoint = 0
-    flights = Flights(bbox_list)
+def flight_read_loop(listen, bbox_list, update_cb, expire_cb, annotate_cb, bbox_change_cb, test_cb=None):
     CHECKPOINT_INTERVAL = 10 # seconds
+    last_checkpoint = 0
+    TEST_INTERVAL = 60*60 # run test every this many seconds
+    last_test = 0
+    flights = Flights(bbox_list)
+
     while True:
         last_read_time = flight_update_read(flights, listen, update_cb, bbox_change_cb)
         if not last_checkpoint: last_checkpoint = last_read_time
@@ -165,6 +173,10 @@ def flight_read_loop(listen, bbox_list, update_cb, expire_cb, annotate_cb, bbox_
             flights.expire_old(expire_cb, last_read_time)
             flights.check_distance(annotate_cb, last_read_time)
             last_checkpoint = last_read_time
+
+        if test_cb and last_read_time and last_read_time - last_test >= TEST_INTERVAL:
+            test_cb()
+            last_test = last_read_time
 
         run_test(lambda: test_insert(flights, update_cb))
 

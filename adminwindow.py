@@ -2,8 +2,10 @@ import webview
 import threading
 import time
 import signal
+import argparse
+from dbg import dbg, set_dbg_level, get_dbg_level, log
 
-from appsheet import Appsheet
+from appsheet_api import Appsheet
 from config import Config
 
 class AdminWindow:
@@ -20,6 +22,8 @@ class AdminWindow:
 
         signal.signal(signal.SIGINT, lambda x,y: exit(1))
 
+        set_dbg_level(2)
+
         webview.start(debug=True)
 
     def focus_listener(self):
@@ -27,11 +31,9 @@ class AdminWindow:
             id = self.q.get()
             self.focus(id)
 
-    def focus(self, flight_id):
-        key = self.appsheet.id_to_key(flight_id)
-
-        if key and len(key):
-            call = ("window.location.href = '" +
-                self.config.private_vars['appsheet']['focus_url'] +
-                key + "'")
-            self.window.evaluate_js(call)
+    def focus(self, tail):
+        if not tail: return
+        call = ("window.location.href = '" +
+            self.config.private_vars['appsheet']['goto_aircraft_url'] +
+            tail + "'")
+        self.window.evaluate_js(call)

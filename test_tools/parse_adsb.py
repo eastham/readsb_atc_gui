@@ -15,13 +15,13 @@ import time
 from datetime import datetime
 import sys
 
-TIME_X = 9.5  # how many "x" versus real time to play back, or 0 for max
+TIME_X = 0  # how many "x" versus real time to play back, or 0 for max
 # https://globe.adsbexchange.com/?replay=2022-09-01-15:00&lat=40.645&lon=-119.101&zoom=10.4
 ANALYZE_LEN_SECS = 60*60*24*30
 PATTERN = "*.json"
 allfiles = []
 accept_socket = None
-first_ts = 0
+first_ts = 1661994081
 
 if len(sys.argv) != 3:
     print("Usage: parse_adsb.py <directory to scan> <port to accept connections on>")
@@ -42,8 +42,8 @@ for file in allfiles:
     print(file + ": " + str(len(jsondict['trace'])) + " trace points")
 
     base_ts = readsb_parse.analyze(jsondict)
-    if not first_ts or first_ts > base_ts:
-        first_ts = base_ts
+#    if not first_ts or first_ts > base_ts:
+#        first_ts = base_ts
 
 # make available on socket
 accept_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -55,7 +55,7 @@ print ('Connected')
 
 dummy_timestamp = {'flight': 'N/A'}
 
-for k in [i for i in range(first_ts, first_ts+ANALYZE_LEN_SECS)]:
+for k in list(range(first_ts, first_ts+ANALYZE_LEN_SECS)):
     # print timestamp periodically to allow syncing with other data
     if datetime.utcfromtimestamp(k).second == 0:
         print(datetime.utcfromtimestamp(k).strftime('%Y-%m-%d %H:%M:%S'))
@@ -73,6 +73,7 @@ for k in [i for i in range(first_ts, first_ts+ANALYZE_LEN_SECS)]:
         buffer = bytes(string, 'ascii')
         conn.sendall(buffer)
         update_ctr += 1
+        print(".", end="")
 
     done_work = time.time()
     work_time = done_work - start_work

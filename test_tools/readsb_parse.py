@@ -83,10 +83,8 @@ def analyze(d, tp_callback=None):
 
         if this_ts in allpoints:
             allpoints[this_ts].append(newdict)
-            print(allpoints[this_ts])
         else:
             allpoints[this_ts] = [newdict]
-            print(allpoints[this_ts])
 
         if first and altint > ALTTHRESH:
             airborne = True

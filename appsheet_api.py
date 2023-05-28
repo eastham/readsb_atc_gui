@@ -27,7 +27,7 @@ class Appsheet:
         self.headers = {"ApplicationAccessKey":
             self.config.private_vars["appsheet"]["accesskey"]}
 
-    def aircraft_lookup(self, tail):
+    def aircraft_lookup(self, tail, wholeobj=False):
         log("aircraft_lookup %s" % (tail))
 
         body = copy.deepcopy(BODY)
@@ -40,20 +40,22 @@ class Appsheet:
                 log("op returned %s" % ret)
                 if ret:
                     log("returning "+ ret[0]["Row ID"])
-                    return ret[0]["Row ID"]
+                    if wholeobj: return ret[0]
+                    else: return ret[0]["Row ID"]
                 return ret
-        except:
+        except Exception:
             pass
         return None
 
-    def add_aircraft(self, regno):
+    def add_aircraft(self, regno, test=False, description=""):
         log("add_aircraft %s" % (regno))
 
         body = copy.deepcopy(BODY)
         body["Action"] = "Add"
         body["Rows"] = [{
             "regno": regno,
-            "test": True,
+            "test": test,
+            "description": description
         }]
         #ppd(self.headers)
         #ppd(body)
@@ -62,38 +64,39 @@ class Appsheet:
                 ret = self.sendop(self.config.private_vars["appsheet"]["aircraft_url"], body)
                 log("op returned %s" % ret)
                 return ret["Rows"][0]["Row ID"] # XXX think about exception
-        except:
+        except Exception:
             pass
         return None
 
-    def get_all_ops(self):
-        log("get_all_ops")
+    def get_all_entries(self, table):
+        log("get_all_entries " + table)
 
         body = copy.deepcopy(BODY)
         body["Action"] = "Find"
         #ppd(body)
+        url = table + "_url"
         try:
-            ret = self.sendop(self.config.private_vars["appsheet"]["ops_url"], body)
+            ret = self.sendop(self.config.private_vars["appsheet"][url], body)
             if ret:
                 return ret
-        except:
+        except Exception:
             pass
         return None
 
-    def delete_all_ops(self):
-        allops = self.get_all_ops()
+    def delete_all_entries(self, table):
+        allentries = self.get_all_entries(table)
         deleterows = []
-        for op in allops:
+        for op in allentries:
             deleterows.append({"Row ID": op["Row ID"]})
 
-        #dbg("delete rows are " + str(deleterows))
+        dbg("delete rows are " + str(deleterows))
 
         body = copy.deepcopy(BODY)
         body["Action"] = "Delete"
         body["Rows"] = deleterows
-
-        #ppd(body)
-        ret = self.sendop(self.config.private_vars["appsheet"]["ops_url"], body)
+        url = table + "_url"
+        ppd(body)
+        ret = self.sendop(self.config.private_vars["appsheet"][url], body)
         log("op returned %s" % ret)
 
     def add_op(self, aircraft, time, scenic, optype, flight_name):
@@ -117,7 +120,7 @@ class Appsheet:
                 ret = self.sendop(self.config.private_vars["appsheet"]["ops_url"], body)
                 log("op returned %s" % ret)
                 return True
-        except:
+        except Exception:
             pass
         return None
 
@@ -140,7 +143,7 @@ class Appsheet:
                 ret = self.sendop(self.config.private_vars["appsheet"]["cpe_url"], body)
                 log("op returned %s" % ret)
                 return ret
-        except:
+        except Exception:
             pass
         return None
 
@@ -154,7 +157,8 @@ class Appsheet:
             "Aircraft2": flight2,
             "Time": optime.strftime("%m/%d/%Y %H:%M:%S"),
             "Min alt sep": altdist,
-            "Min lat sep": latdist*6076
+            "Min lat sep": latdist*6076,
+            "Final": True
         }]
         ppd(body)
 
@@ -163,7 +167,7 @@ class Appsheet:
                 ret = self.sendop(self.config.private_vars["appsheet"]["cpe_url"], body)
                 log("op returned %s" % ret)
                 return ret
-        except:
+        except Exception:
             pass
         return None
 
@@ -195,11 +199,31 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="match flights against kml bounding boxes")
     parser.add_argument("--get_all_ops", action="store_true")
     parser.add_argument("--delete_all_ops", action="store_true")
+    parser.add_argument("--delete_all_pilots", action="store_true")
+    parser.add_argument("--delete_all_aircraft", action="store_true")
+    parser.add_argument("--delete_all_abes", action="store_true")
+    parser.add_argument("--delete_all_notes", action="store_true")
 
     args = parser.parse_args()
 
     if args.get_all_ops: print(as_instance.get_all_ops())
     if args.delete_all_ops:
-        confirm = input("Are you sure? (y/n): ")
+        confirm = input("Deleting all ops. Are you sure? (y/n): ")
         if confirm.lower() == 'y':
-            as_instance.delete_all_ops()
+            as_instance.delete_all_entries("ops")
+    if args.delete_all_pilots:
+        confirm = input("Deleting all pilots. Are you sure? (y/n): ")
+        if confirm.lower() == 'y':
+            as_instance.delete_all_entries("pilot")
+    if args.delete_all_aircraft:
+        confirm = input("Deleting all aircraft. Are you sure? (y/n): ")
+        if confirm.lower() == 'y':
+            as_instance.delete_all_entries("aircraft")
+    if args.delete_all_abes:
+        confirm = input("Deleting all ABEs. Are you sure? (y/n): ")
+        if confirm.lower() == 'y':
+            as_instance.delete_all_entries("cpe")
+    if args.delete_all_notes:
+        confirm = input("Deleting all notes. Are you sure? (y/n): ")
+        if confirm.lower() == 'y':
+            as_instance.delete_all_entries("notes")

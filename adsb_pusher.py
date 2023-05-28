@@ -8,46 +8,63 @@ from flight import Flight, Location
 import appsheet_api
 import datetime
 import time
+import pytz
+from threading import Thread
 
 as_instance = appsheet_api.Appsheet()
-flight_history_dict = dict()
-flight_id_cache = dict()
 
-def bbox_change_cb(flight, bbox_str):
+def lookup_or_create_aircraft(flight):
+    flight_id = flight.tail
+    if not flight_id:
+        flight_id = flight.flight_id
+
+    if not flight.external_id:
+        aircraft_external_id = as_instance.aircraft_lookup(flight_id)
+        if not aircraft_external_id:
+            aircraft_external_id = as_instance.add_aircraft(flight_id)
+            log("LOOKUP added aircraft and now has aircraft_external_id %s" % aircraft_external_id)
+        else:
+            log("LOOKUP got cached aircraft_external_id %s" % aircraft_external_id)
+
+        flight.external_id = aircraft_external_id
+
+    return flight.external_id
+
+def bbox_start_change_cb(flight, flight_str):
+    log("*** bbox_start_change_cb "+flight_str)
+    t = Thread(target=bbox_change_cb, args=[flight, flight_str])
+    t.start()
+
+def bbox_change_cb(flight, flight_str):
+    log("*** bbox_change_cb "+flight_str)
+
+    flight.lock()
     flight_id = flight.tail
     flight_name = flight.flight_id.strip()
     if not flight_id:
         flight_id = flight_name
-
     scenic = False
 
-    if "Pattern" in bbox_str:
-        flight_history_dict[flight_id] = True
-    if "Landing" in bbox_str:
-        if flight_id in flight_history_dict:
+    if "Pattern" in flight_str:
+        flight.flags['scenic'] = True
+    if "Landing" in flight_str:
+        if 'scenic' in flight.flags:
             scenic = True
-            del flight_history_dict[flight_id]
+            flight.flags['scenic'] = False
 
-    if not ("Landing" in bbox_str or "Takeoff" in bbox_str): return
+    if not ("Landing" in flight_str or "Takeoff" in flight_str):
+        flight.unlock()
+        return
 
-    if flight_id in flight_id_cache:
-        aircraft_internal_id = flight_id_cache[flight_id]
-    else:
-        aircraft_internal_id = as_instance.aircraft_lookup(flight_id)
-        log("PUSHER got aircraft_internal_id %s" % aircraft_internal_id)
-        if not aircraft_internal_id:
-            aircraft_internal_id = as_instance.add_aircraft(flight_id)
-            log("PUSHER now has aircraft_internal_id %s" % aircraft_internal_id)
-        flight_id_cache[flight_id] = aircraft_internal_id
+    aircraft_internal_id = lookup_or_create_aircraft(flight)
 
-    optime = datetime.datetime.utcfromtimestamp(flight.lastloc.now)
-
-    if "Landing" in bbox_str:
+    if "Landing" in flight_str:
         log ("PUSHER adding landing")
-        as_instance.add_op(aircraft_internal_id, optime, scenic, "LANDING", flight_name)
-    elif "Takeoff" in bbox_str:
+        as_instance.add_op(aircraft_internal_id, flight.lastloc.now, scenic, "LANDING", flight_name)
+    elif "Takeoff" in flight_str:
         log ("PUSHER adding takeoff")
-        as_instance.add_op(aircraft_internal_id, optime, scenic, "TAKEOFF", flight_name)
+        as_instance.add_op(aircraft_internal_id, flight.lastloc.now, scenic, "TAKEOFF", flight_name)
+    flight.unlock()
 
 class CPE:
     def __init__(self, flight1, flight2, latdist, altdist, time):
@@ -71,32 +88,96 @@ class CPE:
             self.min_altdist = altdist
 
     def key(self):
-        key = "%s %s %s" % (self.flight1.flight_id.strip(),
-            self.flight2.flight_id.strip(), self.create_time)
-
+        key = "%s %s" % (self.flight1.flight_id.strip(),
+            self.flight2.flight_id.strip())
+        return key
 
 current_cpes = dict()
 CPE_GC_TIME = 60
-
+gc_thread = None
 # CPE = Close Proximity Event
 # push to server at first detection and when gc'ed
-def cpe_cb(flight1, flight2, latdist, altdist):
-    dbg("CPE_CB "+flight1.flight_id)
-    time = flight1.lastloc.now
-    cpe = CPE(flight1, flight2, latdist, altdist, time)
 
-    if cpe.key() in current_cpes:
+def cpe_start_cb(flight1, flight2, latdist, altdist):
+    t = Thread(target=cpe_cb, args=[flight1, flight2, latdist, altdist])
+    t.start()
+
+def cpe_cb(flight1, flight2, latdist, altdist):
+    global current_cpes, gc_thread
+    if not gc_thread:
+        gc_thread = Thread(target=gc_loop)
+        gc_thread.start()
+
+    dbg("CPE_CB " + flight1.flight_id + " " + flight2.flight_id)
+
+    time = flight1.lastloc.now
+    # always create a new CPE to get flight1/flight2 ordering right
+    cpe = CPE(flight1, flight2, latdist, altdist, time)
+    cpe.flight1.lock()
+    cpe.flight2.lock()
+
+    flight1_internal_id = lookup_or_create_aircraft(cpe.flight1)
+    flight2_internal_id = lookup_or_create_aircraft(cpe.flight2)
+
+    key = cpe.key()
+    if key in current_cpes:
+        dbg("CPE update " + key)
         current_cpes[key].update(latdist, altdist, time)
     else:
-        as_instance.add_cpe(flight1, flight2, latdist, altdist, time)
-        current_cpes[cpe.key()] = cpe
+        dbg("CPE add " + key)
+        as_instance.add_cpe(flight1_internal_id, flight2_internal_id,
+            latdist, altdist, time)
+        current_cpes[key] = cpe
 
+    cpe.flight2.unlock()
+    cpe.flight1.unlock()
 
+last_time_seen = 0
+
+def gc_loop():
+    while True:
+        time.sleep(10)
+        cpe_gc(last_time_seen)
+
+# XXX current_cpes race?
 def cpe_gc(now):
-    for cpe in current_cpes.values():
-        if now - cpe.last_time > CPE_GC_TIME:
-            as_instance.update_cpe(cpe.flight1, cpe.flight2, cpe.min_latdist,
-                cpe.min_altdist, cpe.create_time)
+    dbg("CPE_GC")
+    global current_cpes
+
+    for cpe in list(current_cpes.values()):
+        dbg("CPE_GC %s %d %d" % (cpe.key(), time.time(), cpe.last_time))
+
+        if time.time() - cpe.last_time > CPE_GC_TIME:
+            dbg("CPE final update " + cpe.flight1.flight_id + " " + cpe.flight2.flight_id)
+
+            cpe.flight1.lock()
+            cpe.flight2.lock()
+            dbg("CPE final update locked" + cpe.flight1.flight_id + " " + cpe.flight2.flight_id)
+
+            flight1_internal_id = lookup_or_create_aircraft(cpe.flight1)
+            flight2_internal_id = lookup_or_create_aircraft(cpe.flight2)
+            as_instance.update_cpe(flight1_internal_id, flight2_internal_id,
+                cpe.min_latdist, cpe.min_altdist, cpe.create_time)
+            del current_cpes[cpe.key()]
+
+            cpe.flight2.unlock()
+            cpe.flight1.unlock()
+
+def test_cb():
+    t = Thread(target=test_cb_body)
+    t.start()
+
+def test_cb_body():
+    dbg("TEST THREAD RUNNING")
+    now = datetime.datetime.now()
+
+    # set the timezone to Pacific Time
+    pacific_tz = pytz.timezone('America/Los_Angeles')
+    pacific_time = now.astimezone(pacific_tz)
+    desc = "TEST AT %d/%d" % (pacific_time.day,pacific_time.hour)
+
+    as_instance.add_aircraft("N123XXX", test=True, description=desc)
+
 
 if __name__ == "__main__":
     # No-GUI mode, see controller.py for GUI
@@ -120,4 +201,5 @@ if __name__ == "__main__":
 
     listen = adsb_receiver.setup(args.ipaddr, args.port)
 
-    adsb_receiver.flight_read_loop(listen, bboxes_list, None, None, cpe_cb, bbox_change_cb)
+    adsb_receiver.flight_read_loop(listen, bboxes_list, None, None,
+        cpe_start_cb, bbox_start_change_cb, test_cb=test_cb)
