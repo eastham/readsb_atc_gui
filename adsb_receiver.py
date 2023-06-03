@@ -1,14 +1,12 @@
-import dataclasses
 import socket
 import threading
 import json
 import signal
-import time
 import datetime
 from typing import Dict
 
 from bboxes import Bboxes
-from dbg import dbg, set_dbg_level, log, ppdbg
+from dbg import dbg, set_dbg_level, log
 from flight import Flight, Location
 from test import test_insert, tests_enable, run_test
 
@@ -77,9 +75,9 @@ class Flights:
         O(n^2), can be expensive, but altitude and bbox limits help..
         """
         dbg("check_distance")
-        MIN_ALT_SEPARATION = 8000
-        MIN_ALT = 100
-        MIN_DISTANCE = 3   # nautical miles XXX
+        MIN_ALT_SEPARATION = 400 # 8000 # 400
+        MIN_ALT = 4000 # 100 # 4000
+        MIN_DISTANCE = .3 # 1   # .3 # nautical miles 
         MIN_FRESH = 10 # seconds, otherwise not evaluated
         flight_list = list(self.flight_dict.values())
 
@@ -144,7 +142,7 @@ def flight_update_read(flights, listen, update_cb, bbox_change_cb):
     try:
         line = listen.readline()
         jsondict = json.loads(line)
-    except Exception as e:
+    except Exception:
         print("Socket input/parse error, attempting to reconnect...")
         listen.connect()
         return

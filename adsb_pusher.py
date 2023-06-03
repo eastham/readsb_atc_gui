@@ -1,19 +1,21 @@
 # accept traffic from readsb and push relevant flights to
 # an appsheet app.
 
-import adsb_receiver
-from dbg import dbg, set_dbg_level, log, ppdbg
-from bboxes import Bboxes
-from flight import Flight, Location
-import appsheet_api
 import datetime
 import time
-import pytz
 from threading import Thread
+import pytz
+
+import adsb_receiver
+from dbg import dbg, set_dbg_level, log
+from bboxes import Bboxes
+import appsheet_api
 
 as_instance = appsheet_api.Appsheet()
 
 def lookup_or_create_aircraft(flight):
+    '''return appsheet id for flight, creating if needed.'''
+
     flight_id = flight.tail
     if not flight_id:
         flight_id = flight.flight_id
@@ -67,7 +69,7 @@ def bbox_change_cb(flight, flight_str):
     flight.unlock()
 
 class CPE:
-    def __init__(self, flight1, flight2, latdist, altdist, time):
+    def __init__(self, flight1, flight2, latdist, altdist, create_time):
         if (flight1.flight_id > flight2.flight_id):
             self.flight2 = flight1
             self.flight1 = flight2
@@ -76,12 +78,13 @@ class CPE:
             self.flight2 = flight2
         self.latdist = self.min_latdist = latdist
         self.altdist = self.min_altdist = altdist
-        self.create_time = self.last_time = time
+        self.create_time = self.last_time = create_time
+        self.id = None
 
-    def update(self, latdist, altdist, time):
+    def update(self, latdist, altdist, last_time):
         self.latdist = latdist
         self.altdist = altdist
-        self.last_time = time
+        self.last_time = last_time
         # perhaps this is better done with an absolute distance?
         if latdist <= self.min_latdist or altdist <= self.min_altdist:
             self.min_latdist = latdist
@@ -103,16 +106,16 @@ def cpe_start_cb(flight1, flight2, latdist, altdist):
     t.start()
 
 def cpe_cb(flight1, flight2, latdist, altdist):
-    global current_cpes, gc_thread
+    global gc_thread
     if not gc_thread:
         gc_thread = Thread(target=gc_loop)
         gc_thread.start()
 
     dbg("CPE_CB " + flight1.flight_id + " " + flight2.flight_id)
 
-    time = flight1.lastloc.now
+    now = flight1.lastloc.now
     # always create a new CPE to get flight1/flight2 ordering right
-    cpe = CPE(flight1, flight2, latdist, altdist, time)
+    cpe = CPE(flight1, flight2, latdist, altdist, now)
     cpe.flight1.lock()
     cpe.flight2.lock()
 
@@ -122,11 +125,12 @@ def cpe_cb(flight1, flight2, latdist, altdist):
     key = cpe.key()
     if key in current_cpes:
         dbg("CPE update " + key)
-        current_cpes[key].update(latdist, altdist, time)
+        current_cpes[key].update(latdist, altdist, now)
     else:
         dbg("CPE add " + key)
-        as_instance.add_cpe(flight1_internal_id, flight2_internal_id,
-            latdist, altdist, time)
+        cpe_id = as_instance.add_cpe(flight1_internal_id, flight2_internal_id,
+            latdist, altdist, now)
+        cpe.id = cpe_id
         current_cpes[key] = cpe
 
     cpe.flight2.unlock()
@@ -137,16 +141,18 @@ last_time_seen = 0
 def gc_loop():
     while True:
         time.sleep(10)
-        cpe_gc(last_time_seen)
+        cpe_gc()
 
 # XXX current_cpes race?
-def cpe_gc(now):
+def cpe_gc():
     dbg("CPE_GC")
-    global current_cpes
 
     for cpe in list(current_cpes.values()):
         dbg("CPE_GC %s %d %d" % (cpe.key(), time.time(), cpe.last_time))
 
+        # using time.time() here won't work in replay cases, but we're not
+        # replaying with this tool
+        # XXX maybe should eval last_time inside lock?
         if time.time() - cpe.last_time > CPE_GC_TIME:
             dbg("CPE final update " + cpe.flight1.flight_id + " " + cpe.flight2.flight_id)
 
@@ -157,7 +163,7 @@ def cpe_gc(now):
             flight1_internal_id = lookup_or_create_aircraft(cpe.flight1)
             flight2_internal_id = lookup_or_create_aircraft(cpe.flight2)
             as_instance.update_cpe(flight1_internal_id, flight2_internal_id,
-                cpe.min_latdist, cpe.min_altdist, cpe.create_time)
+                cpe.min_latdist, cpe.min_altdist, cpe.create_time, cpe.id)
             del current_cpes[cpe.key()]
 
             cpe.flight2.unlock()
@@ -193,8 +199,6 @@ if __name__ == "__main__":
 
     if args.debug: set_dbg_level(2)
     else: set_dbg_level(1)
-    if args.test: tests_enable()
-
     bboxes_list = []
     for f in args.file:
         bboxes_list.append(Bboxes(f))

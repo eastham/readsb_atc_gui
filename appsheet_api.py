@@ -1,9 +1,8 @@
-import requests
-import json
-import re
 import copy
+import json
 import datetime
 import argparse
+import requests
 
 from config import Config
 from dbg import ppd, log, set_dbg_level, dbg
@@ -35,7 +34,7 @@ class Appsheet:
         body["Properties"]["Selector"] = "Filter(Aircraft, [Regno] = \"%s\")" % tail
         #ppd(body)
         try:
-            if SEND_AC or "616" in tail or "818" in tail: # XXX clean up
+            if SEND_AC:
                 ret = self.sendop(self.config.private_vars["appsheet"]["aircraft_url"], body)
                 log("op returned %s" % ret)
                 if ret:
@@ -44,7 +43,8 @@ class Appsheet:
                     else: return ret[0]["Row ID"]
                 return ret
         except Exception:
-            pass
+            log("aircraft_lookup op raised exception")
+
         return None
 
     def add_aircraft(self, regno, test=False, description=""):
@@ -65,7 +65,8 @@ class Appsheet:
                 log("op returned %s" % ret)
                 return ret["Rows"][0]["Row ID"] # XXX think about exception
         except Exception:
-            pass
+            log("add_aircraft op raised exception")
+
         return None
 
     def get_all_entries(self, table):
@@ -118,10 +119,11 @@ class Appsheet:
         try:
             if SEND_OPS:
                 ret = self.sendop(self.config.private_vars["appsheet"]["ops_url"], body)
-                log("op returned %s" % ret)
+                log(f"op returned {ret}")
                 return True
         except Exception:
-            pass
+            log("add_op raised exception")
+
         return None
 
     def add_cpe(self, flight1, flight2, latdist, altdist, time):
@@ -142,17 +144,18 @@ class Appsheet:
             if SEND_CPES:
                 ret = self.sendop(self.config.private_vars["appsheet"]["cpe_url"], body)
                 log("op returned %s" % ret)
-                return ret
+                return ret["Rows"][0]["Row ID"]
         except Exception:
-            pass
+            log("add_cpe op raised exception")
         return None
 
-    def update_cpe(self, flight1, flight2, latdist, altdist, time):
+    def update_cpe(self, flight1, flight2, latdist, altdist, time, rowid):
         log("update_cpe %s %s" % (flight1, flight2))
         optime = datetime.datetime.fromtimestamp(time)
         body = copy.deepcopy(BODY)
         body["Action"] = "Edit"
         body["Rows"] = [{
+            "Row ID": rowid,
             "Aircraft1": flight1,
             "Aircraft2": flight2,
             "Time": optime.strftime("%m/%d/%Y %H:%M:%S"),
@@ -168,7 +171,7 @@ class Appsheet:
                 log("op returned %s" % ret)
                 return ret
         except Exception:
-            pass
+            log("update_cpe op raised exception")
         return None
 
     def sendop(self, url, body):
@@ -176,12 +179,12 @@ class Appsheet:
         response_dict = None
         response = requests.post(
             url,
-            headers=self.headers, json=body)
+            headers=self.headers, json=body, timeout=30)
         if response.status_code != 200:
             ppd(response)
             raise Exception("op fail")
         #ppd(response)
-        if not len(response.text): return None
+        if not response.text: return None
         response_dict = json.loads(response.text)
         #log("sendop response_dict: %s" % response_dict)
 

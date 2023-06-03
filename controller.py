@@ -26,6 +26,7 @@ from flight import Flight
 from displaywindow import DisplayWindow
 
 controllerapp = None
+SERVER_REFRESH_RATE = 60 # seconds
 
 USE_APPSHEET = True
 if USE_APPSHEET:
@@ -50,6 +51,8 @@ class FlightStrip:
         self.focus_q = focus_q
         self.admin_q = admin_q
         self.bg_color_warn = False
+        self.update_thread = None
+        self.stop_event = threading.Event()
 
         self.top_string = None
         self.note_string = ""
@@ -77,12 +80,21 @@ class FlightStrip:
         self.right_layout.add_widget(self.focus_button)
         self.right_layout.add_widget(self.web_button)
 
+    def __del__(self):
+        dbg("deleting strip")
+        if self.update_thread:
+            dbg("STOPPING THREAD")
+            self.stop_event.set()
+            self.update_thread.join()
+            self.update_thread = None
+
     def main_button_click(self, arg):
-        controllerapp.dialog.show_custom_dialog(self.app, self.id)
+        #controllerapp.dialog.show_custom_dialog(self.app, self.id)
+        pass
 
     def admin_click(self, arg):
         if self.flight.flags['Row ID'] is IN_PROGRESS:
-            self.update_flight_rowid(self.flight)
+            self.do_server_update(self.flight)
         if self.admin_q: self.admin_q.put(self.flight.flags['Row ID'])
         return
 
@@ -90,7 +102,7 @@ class FlightStrip:
         webbrowser.open("https://flightaware.com/live/flight/" + self.id)
 
     def focus_click(self, arg):
-        print("focus " + self.id)
+        dbg("focus " + self.id)
         if self.focus_q: self.focus_q.put(self.id)
 
     def update_strip_text(self):
@@ -101,33 +113,44 @@ class FlightStrip:
         scrollbox_name = "scroll_%d" % self.scrollview_index
         return self.app.controller.ids[scrollbox_name].children[0]
 
-    def update_flight_rowid(self, flight):
-        dbg("running rowid update thread")
-        if not appsheet: return
+    def stop_server_loop(self):
+        dbg("stop_server_loop, thread " + str(self.update_thread))
+        self.stop_event.set()
 
+    def do_server_update(self, flight):
         tail = flight.tail if flight.tail else flight.flight_id.strip()
+        dbg("do_server_update: "+tail)
         try:
             obj = appsheet.aircraft_lookup(tail, wholeobj=True)
             if obj:
                 flight.flags['Row ID'] = obj['Row ID']
 
-            if not obj or not obj['Registered online']:
+            if not obj or (
+             (not obj['Registered online']) and (obj['IsBxA']!='Y')):
                 self.note_string = "**Unregistered A/C** "
                 self.bg_color_warn = True
-                return
-            flight.flags['Row ID'] = obj['Row ID']
-            self.note_string += "Arrivals=%s" % obj['Arrivals']
+            else:
+                self.bg_color_warn = False
+                flight.flags['Row ID'] = obj['Row ID']
+                self.note_string = "Arrivals=%s" % obj['Arrivals']
         except:
             del flight.flags['Row ID']
-            pass
+
         self.set_normal()
-        dbg("done running rowid update thread")
+        dbg("done running update_from_server " + tail)
+
+    def server_refresh_thread(self, flight):
+        if not appsheet: return
+        while not self.stop_event.is_set():
+            self.do_server_update(flight)
+            time.sleep(SERVER_REFRESH_RATE)
+        dbg("EXITED UPDATE")
 
     def update(self, flight, location, bboxes_list):
         if 'Row ID' not in flight.flags:
             flight.flags['Row ID'] = IN_PROGRESS
-            t = threading.Thread(target=self.update_flight_rowid, args=[flight])
-            t.start()
+            self.update_thread = threading.Thread(target=self.server_refresh_thread, args=[flight])
+            self.update_thread.start()
 
         if (flight.flight_id.strip() != flight.tail and flight.tail):
             extratail = flight.tail
@@ -137,7 +160,9 @@ class FlightStrip:
             extratail)
 
         bbox_2nd_level = flight.get_bbox_at_level(1, bboxes_list)
-        cliplen = 25-len(flight.flight_id.strip()) - len(extratail)
+        # XXX hack to keep string from wrapping...not sure how to get kivy
+        # to do this
+        cliplen = 23 - len(flight.flight_id.strip()) - len(extratail)
         if cliplen < 0: cliplen = 0
         self.loc_string = bbox_2nd_level.name[0:cliplen] if bbox_2nd_level else ""
 
@@ -163,12 +188,12 @@ class FlightStrip:
         self.get_scrollview().add_widget(self.layout, index=100)
 
     def annotate(self, note):
-        print("**** annotate " + note)
+        dbg("**** annotate " + note)
 
         self.note_string = note
         if self.deanno_event:
             Clock.unschedule(self.deanno_event)
-        self.deanno_event = Clock.schedule_once(lambda dt: self.deannotate(), 5)
+        self.deanno_event = Clock.schedule_once(lambda dt: self.deannotate(), 10)
         self.main_button.background_color = (1,1,0)
 
         self.update_strip_text()
@@ -222,13 +247,13 @@ class ControllerApp(MDApp):
         if id in self.strips:
             strip = self.strips[id]
             strip.update(flight, flight.lastloc, flight.bboxes_list)
-
-            if new_scrollview_index < 0:  # no longer in a tracked region
+            if new_scrollview_index < 0 and strip.scrollview_index >= 0:  # no longer in a tracked region
                 # don't move strip but continue to update indefinitely
-                # XXX probably not right behavior
+                # XXX probably not right behavior for everyone
                 return
             if strip.scrollview_index != new_scrollview_index and new_scrollview_index != self.OMIT_INDEX:
                 # move strip to new scrollview
+
                 strip.unrender()
                 strip.scrollview_index = new_scrollview_index
                 move = True
@@ -237,6 +262,7 @@ class ControllerApp(MDApp):
             if new_scrollview_index < 0:
                 return # not in a tracked region now, don't add it
             # location is inside one of our tracked regions, add new strip
+
             strip = FlightStrip(new_scrollview_index, self, flight, id, flight.tail,
                 self.focus_q, self.admin_q)
             strip.update(flight, flight.lastloc, flight.bboxes_list)
@@ -254,6 +280,7 @@ class ControllerApp(MDApp):
             return
         dbg("removing flight %s" % flight.flight_id)
         strip.unrender()
+        strip.stop_server_loop()
         del self.strips[flight.flight_id]
 
     @mainthread

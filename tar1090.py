@@ -1,21 +1,18 @@
-import os
-import time
-import webview
-import argparse
 from multiprocessing import Process, Queue
-
-from dbg import dbg, log
 from config import Config
+from displaywindow import DisplayWindow
+from adminwindow import AdminWindow
 
 def display_child(q):
+    '''starts the flight strip display'''
     print("Child starting pywebview")
-    from displaywindow import DisplayWindow
-    display_window = DisplayWindow(q)
+
+    DisplayWindow(q)
 
 def admin_child(q):
+    '''starts the window for the administrative gui'''
     print("Child starting admin")
-    from adminwindow import AdminWindow
-    admin_window = AdminWindow(q)
+    AdminWindow(q)
 
 if __name__ == '__main__':
     config = Config()
