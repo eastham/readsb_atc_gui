@@ -27,6 +27,7 @@ from displaywindow import DisplayWindow
 
 controllerapp = None
 SERVER_REFRESH_RATE = 60 # seconds
+IN_PROGRESS = "In progress"
 
 USE_APPSHEET = True
 if USE_APPSHEET:
@@ -34,8 +35,6 @@ if USE_APPSHEET:
     appsheet = appsheet_api.Appsheet()
 else:
     appsheet = None
-
-IN_PROGRESS = "In progress"
 
 class Controller(FloatLayout):
     def do_add_click(self, n):
@@ -81,12 +80,7 @@ class FlightStrip:
         self.right_layout.add_widget(self.web_button)
 
     def __del__(self):
-        dbg("deleting strip")
-        if self.update_thread:
-            dbg("STOPPING THREAD")
-            self.stop_event.set()
-            self.update_thread.join()
-            self.update_thread = None
+        dbg(f"Deleting strip {self.id}")
 
     def main_button_click(self, arg):
         #controllerapp.dialog.show_custom_dialog(self.app, self.id)
@@ -140,11 +134,12 @@ class FlightStrip:
         dbg("done running update_from_server " + tail)
 
     def server_refresh_thread(self, flight):
+        """This thread periodically refreshes aircraft details with the server."""
         if not appsheet: return
         while not self.stop_event.is_set():
             self.do_server_update(flight)
             time.sleep(SERVER_REFRESH_RATE)
-        dbg("EXITED UPDATE")
+        dbg("Exited refresh thread")
 
     def update(self, flight, location, bboxes_list):
         if 'Row ID' not in flight.flags:
@@ -210,7 +205,6 @@ class ControllerApp(MDApp):
         dbg("controller init")
         self.strips = {}    # dict of FlightStrips by id
         self.dialog = None
-        self.OMIT_INDEX = 3  # don't move strips TO this scrollview index.  XXX move to KML?
         self.MAX_SCROLLVIEWS = 4
         self.bboxes = bboxes
         self.focus_q = focus_q
@@ -251,7 +245,7 @@ class ControllerApp(MDApp):
                 # don't move strip but continue to update indefinitely
                 # XXX probably not right behavior for everyone
                 return
-            if strip.scrollview_index != new_scrollview_index and new_scrollview_index != self.OMIT_INDEX:
+            if strip.scrollview_index != new_scrollview_index:
                 # move strip to new scrollview
 
                 strip.unrender()

@@ -18,8 +18,11 @@ import readsb_parse
 
 TIME_X = 30  # how many "x" versus real time to play back, or 0 for max
 ANALYZE_LEN_SECS = 60*60*24*30
-first_ts = 1662044400  #sep 1 7am: 1662040800 # 6:30 1662039000 # 8am 1662044400
-#first_ts += 10*60
+start_date_string = '2022-09-02 10:30:00'  # Local time
+
+start_date_time = datetime.strptime(start_date_string, '%Y-%m-%d %H:%M:%S')  
+first_ts = int(start_date_time.timestamp()) 
+print(f"Starting at {start_date_string} -- {first_ts}")
 
 def locate_files(directory, pattern):
     allfiles = []
@@ -71,18 +74,12 @@ class Socket:
         for conn in self.connections:
             conn.close()
 
-
 def exit_handler(x, y):
-    if sock1:
-        sock1.close()
-    if sock2:
-        sock2.close()
     exit(1)
 
-
 def main():
-    global sock1, sock2
-    sock1, sock2 = (None, None)
+    DUMMY_TIMESTAMP = {'flight': 'N/A'}
+
     signal.signal(signal.SIGINT, exit_handler)
 
     if len(sys.argv) < 3:
@@ -94,9 +91,7 @@ def main():
 
     sock = Socket('127.0.0.1', int(sys.argv[2]))
 
-    dummy_timestamp = {'flight': 'N/A'}
-
-    # wait for first connection
+    # wait for first connection before starting data replay
     while True:
         try:
             sock.accept()
@@ -106,20 +101,20 @@ def main():
 
     for k in list(range(first_ts, first_ts+ANALYZE_LEN_SECS)):
         try:
-            sock.accept()
+            sock.accept() # keep monitoring for new connections
         except socket.error:
             pass
 
         if datetime.utcfromtimestamp(k).second == 0:
-            print(datetime.utcfromtimestamp(k).strftime('%Y-%m-%d %H:%M:%S'))
+            print("\n"+datetime.utcfromtimestamp(k).strftime('%Y-%m-%d %H:%M:%S')+"\n")
 
         start_work = time.time()
         update_ctr = 0
 
         if not k in readsb_parse.allpoints:
             # send dummy entry so the client can account for time passage w/ no a/c
-            dummy_timestamp['now'] = k
-            readsb_parse.allpoints[k] = [dummy_timestamp]
+            DUMMY_TIMESTAMP['now'] = k
+            readsb_parse.allpoints[k] = [DUMMY_TIMESTAMP]
 
         for d in readsb_parse.allpoints[k]:
             string = json.dumps(d) + "\n"

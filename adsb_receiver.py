@@ -3,12 +3,13 @@ import threading
 import json
 import signal
 import datetime
+import sys
 from typing import Dict
 
+from test import test_insert, tests_enable, run_test
 from bboxes import Bboxes
 from dbg import dbg, set_dbg_level, log
 from flight import Flight, Location
-from test import test_insert, tests_enable, run_test
 
 class Flights:
     """all Flight objects in the system, indexed by flight_id"""
@@ -62,7 +63,7 @@ class Flights:
         self.lock.acquire()
         for f in list(self.flight_dict):
             flight = self.flight_dict[f]
-            if (last_read_time - flight.lastloc.now > self.EXPIRE_SECS):
+            if last_read_time - flight.lastloc.now > self.EXPIRE_SECS:
                 if flight.in_any_bbox(): log("Expiring flight: %s" % f)
                 if expire_cb: expire_cb(flight)
                 del self.flight_dict[f]
@@ -109,6 +110,7 @@ class TCPConnection:
         self.host = host
         self.port = port
         self.sock = None
+        self.f = None
 
     def connect(self):
         try:
@@ -126,17 +128,17 @@ class TCPConnection:
         return self.f.readline()
 
 def sigint_handler(signum, frame):
-    exit(1)
+    sys.exit(1)
 
 def setup(ipaddr, port):
     print("Connecting to %s:%d" % (ipaddr, int(port)))
 
     signal.signal(signal.SIGINT, sigint_handler)
-    listen = TCPConnection(ipaddr, int(port))
-    listen.connect()
+    conn = TCPConnection(ipaddr, int(port))
+    conn.connect()
 
     dbg("Setup done")
-    return listen
+    return conn
 
 def flight_update_read(flights, listen, update_cb, bbox_change_cb):
     try:
