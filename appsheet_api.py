@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 import copy
 import json
 import datetime
@@ -16,9 +17,10 @@ BODY = {
 ]
 }
 
-SEND_AC = True
-SEND_OPS = True
-SEND_CPES = True
+SEND_AIRCRAFT = False
+SEND_OPS = False
+SEND_CPES = False
+FAKE_KEY = "XXXfake keyXXX"  # for testing purposes
 
 class Appsheet:
     def __init__(self):
@@ -27,6 +29,7 @@ class Appsheet:
             self.config.private_vars["appsheet"]["accesskey"]}
 
     def aircraft_lookup(self, tail, wholeobj=False):
+        """return appsheet internal ID for this tail number """
         log("aircraft_lookup %s" % (tail))
 
         body = copy.deepcopy(BODY)
@@ -34,20 +37,22 @@ class Appsheet:
         body["Properties"]["Selector"] = "Filter(Aircraft, [Regno] = \"%s\")" % tail
         #ppd(body)
         try:
-            if SEND_AC:
+            if SEND_AIRCRAFT:
                 ret = self.sendop(self.config.private_vars["appsheet"]["aircraft_url"], body)
-                log("op returned %s" % ret)
                 if ret:
-                    log("returning "+ ret[0]["Row ID"])
+                    dbg("returning "+ ret[0]["Row ID"])
                     if wholeobj: return ret[0]
                     else: return ret[0]["Row ID"]
                 return ret
+            else:
+                return FAKE_KEY
         except Exception:
             log("aircraft_lookup op raised exception")
 
         return None
 
     def add_aircraft(self, regno, test=False, description=""):
+        """Create aircraft in appsheet"""
         log("add_aircraft %s" % (regno))
 
         body = copy.deepcopy(BODY)
@@ -60,10 +65,11 @@ class Appsheet:
         #ppd(self.headers)
         #ppd(body)
         try:
-            if SEND_AC or "616" in regno or "818" in regno:
+            if SEND_AIRCRAFT :
                 ret = self.sendop(self.config.private_vars["appsheet"]["aircraft_url"], body)
-                log("op returned %s" % ret)
-                return ret["Rows"][0]["Row ID"] # XXX think about exception
+                return ret["Rows"][0]["Row ID"]
+            else:
+                return FAKE_KEY
         except Exception:
             log("add_aircraft op raised exception")
 
@@ -97,8 +103,7 @@ class Appsheet:
         body["Rows"] = deleterows
         url = table + "_url"
         ppd(body)
-        ret = self.sendop(self.config.private_vars["appsheet"][url], body)
-        log("op returned %s" % ret)
+        ret = self.sendop(self.config.private_vars["appsheet"][url], body, timeout=None)
 
     def add_op(self, aircraft, time, scenic, optype, flight_name):
         log("add_op %s %s" % (aircraft, optype))
@@ -119,8 +124,7 @@ class Appsheet:
         try:
             if SEND_OPS:
                 ret = self.sendop(self.config.private_vars["appsheet"]["ops_url"], body)
-                log(f"op returned {ret}")
-                return True
+            return True
         except Exception:
             log("add_op raised exception")
 
@@ -139,12 +143,13 @@ class Appsheet:
             "Min alt sep": altdist,
             "Min lat sep": latdist*6076
         }]
-        ppd(body)
+        #ppd(body)
         try:
             if SEND_CPES:
                 ret = self.sendop(self.config.private_vars["appsheet"]["cpe_url"], body)
-                log("op returned %s" % ret)
                 return ret["Rows"][0]["Row ID"]
+            else:
+                return FAKE_KEY
         except Exception:
             log("add_cpe op raised exception")
         return None
@@ -163,38 +168,36 @@ class Appsheet:
             "Min lat sep": latdist*6076,
             "Final": True
         }]
-        ppd(body)
+        #ppd(body)
 
         try:
             if SEND_CPES:
                 ret = self.sendop(self.config.private_vars["appsheet"]["cpe_url"], body)
-                log("op returned %s" % ret)
                 return ret
+            else:
+                return FAKE_KEY
         except Exception:
             log("update_cpe op raised exception")
         return None
 
-    def sendop(self, url, body):
+    def sendop(self, url, body, timeout=30):
         log("sending to url "+url)
         response_dict = None
         response = requests.post(
             url,
-            headers=self.headers, json=body, timeout=30)
+            headers=self.headers, json=body, timeout=timeout)
         if response.status_code != 200:
             ppd(response)
             raise Exception("op fail")
-        #ppd(response)
+        # ppd(response)
         if not response.text: return None
         response_dict = json.loads(response.text)
-        #log("sendop response_dict: %s" % response_dict)
+        dbg(f"sendop response_dict for op ...{url[-20:]}: {response_dict}")
 
         if not len(response_dict): return None
 
         return response_dict
 
-# XXX need to figure out restart story.  exception raised above
-
-# for manual testing only:
 if __name__ == "__main__":
     set_dbg_level(2)
     as_instance = Appsheet()

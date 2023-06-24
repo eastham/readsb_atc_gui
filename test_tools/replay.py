@@ -16,11 +16,13 @@ import sys
 
 import readsb_parse
 
-TIME_X = 30  # how many "x" versus real time to play back, or 0 for max
-ANALYZE_LEN_SECS = 60*60*24*30
-start_date_string = '2022-09-02 10:30:00'  # Local time
+TIME_X = 5000  # how many "x" versus real time to play back, 5000 max
+ANALYZE_LEN_SECS = 60*60*24*16
+#start_date_string = '2022-09-02 13:30:00+00:00'  # UTC
+start_date_string = '2022-08-23 13:30:00+00:00'  # UTC
 
-start_date_time = datetime.strptime(start_date_string, '%Y-%m-%d %H:%M:%S')  
+start_date_time = datetime.fromisoformat(start_date_string)
+# start_date_time = datetime.strptime(start_date_string, '%Y-%m-%d %H:%M:%S')  
 first_ts = int(start_date_time.timestamp()) 
 print(f"Starting at {start_date_string} -- {first_ts}")
 
@@ -46,6 +48,7 @@ class Socket:
     def __init__(self, ip, port):
         """Constructs a new Socket object with specified IP and port."""
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 2097152)
         self.socket.setblocking(False)
         self.socket.bind((ip, port))
         self.socket.listen(5)
@@ -106,7 +109,7 @@ def main():
             pass
 
         if datetime.utcfromtimestamp(k).second == 0:
-            print("\n"+datetime.utcfromtimestamp(k).strftime('%Y-%m-%d %H:%M:%S')+"\n")
+            print("\n"+datetime.utcfromtimestamp(k).strftime('%Y-%m-%d %H:%M:%S'))
 
         start_work = time.time()
         update_ctr = 0
@@ -121,12 +124,12 @@ def main():
             buffer = bytes(string, 'ascii')
             sock.sendall(buffer)
             update_ctr += 1
-            print(".", end="")
+            print(".", end="", flush=True)
 
         done_work = time.time()
         work_time = done_work - start_work
         if TIME_X:
-            sleeptime = (1/TIME_X) - work_time
+            sleeptime = (1./TIME_X) - work_time
             if sleeptime > 0.:
                 time.sleep(sleeptime)
 

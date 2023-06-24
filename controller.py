@@ -8,8 +8,6 @@ from kivymd.app import MDApp
 from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.gridlayout import GridLayout
 from kivy.uix.button import Button
-from kivy.app import App
-from kivy.properties import ObjectProperty, StringProperty
 
 import signal
 import threading
@@ -19,11 +17,8 @@ import argparse
 
 import adsb_receiver
 from dialog import Dialog
-from dbg import dbg, set_dbg_level, get_dbg_level, log
-from test import tests_enable
+from dbg import dbg, set_dbg_level
 from bboxes import Bboxes
-from flight import Flight
-from displaywindow import DisplayWindow
 
 controllerapp = None
 SERVER_REFRESH_RATE = 60 # seconds
@@ -127,7 +122,7 @@ class FlightStrip:
                 self.bg_color_warn = False
                 flight.flags['Row ID'] = obj['Row ID']
                 self.note_string = "Arrivals=%s" % obj['Arrivals']
-        except:
+        except Exception:
             del flight.flags['Row ID']
 
         self.set_normal()
@@ -234,7 +229,6 @@ class ControllerApp(MDApp):
 
     @mainthread
     def update_strip(self, flight):
-        move = False
         new_scrollview_index = flight.inside_bboxes[0]
         id = flight.flight_id
 
@@ -250,7 +244,6 @@ class ControllerApp(MDApp):
 
                 strip.unrender()
                 strip.scrollview_index = new_scrollview_index
-                move = True
                 strip.render()
         else:
             if new_scrollview_index < 0:
@@ -264,7 +257,6 @@ class ControllerApp(MDApp):
             strip.set_highlight()
 
             self.strips[id] = strip
-
 
     @mainthread
     def remove_strip(self, flight):

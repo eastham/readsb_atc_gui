@@ -72,10 +72,9 @@ class Flights:
 
     def check_distance(self, annotate_cb, last_read_time):
         """
-        Check distance between all bbox'ed aircraft.
+        Check distance between all currently bbox'ed aircraft.
         O(n^2), can be expensive, but altitude and bbox limits help..
         """
-        dbg("check_distance")
         MIN_ALT_SEPARATION = 400 # 8000 # 400
         MIN_ALT = 4000 # 100 # 4000
         MIN_DISTANCE = .3 # 1   # .3 # nautical miles 
@@ -100,7 +99,6 @@ class Flights:
                             (flight1.flight_id, flight2.flight_id, dist))
                         print("LAT, %f, %f, %d" % (flight1.lastloc.lat, flight1.lastloc.lon, last_read_time))
                         if annotate_cb:
-
                             annotate_cb(flight1, flight2, dist, abs(loc1.alt_baro - loc2.alt_baro))
                             annotate_cb(flight2, flight1, dist, abs(loc1.alt_baro - loc2.alt_baro))
 
@@ -120,6 +118,7 @@ class TCPConnection:
             print('Successful Connection')
         except Exception:
             print('Connection Failed')
+            sys.exit(1)
             raise
 
         self.f = self.sock.makefile()

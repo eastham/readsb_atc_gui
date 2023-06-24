@@ -37,7 +37,6 @@ def analyze(d, tp_callback=None):
     #pp.pprint(d)
     global allpoints
     icao_num = d['icao']
-    print("now parsing ICAO %s" % icao_num)
     n_number = icao_to_n(icao_num)
     airborne = False
     first = True
@@ -67,7 +66,7 @@ def analyze(d, tp_callback=None):
                 altint = 0
 
         if altint > IGNOREABOVE: continue
-        print("|| %s ||" % tp)
+        #print("|| %s ||" % tp)
 
         # per-tracepoint timestamp is seconds past the per-file timestamp
         this_ts = start_ts+int(tp[0])
