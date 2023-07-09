@@ -22,7 +22,6 @@ from bboxes import Bboxes
 
 controllerapp = None
 SERVER_REFRESH_RATE = 60 # seconds
-IN_PROGRESS = "In progress"
 
 USE_APPSHEET = True
 if USE_APPSHEET:
@@ -61,7 +60,7 @@ class FlightStrip:
 
         self.right_layout = GridLayout(rows=3, row_default_height=50)
 
-        self.admin_button = Button(text='Admin', size_hint_x=None, width=100,
+        self.admin_button = Button(text='Open', size_hint_x=None, width=100,
             on_release=self.admin_click)
         self.focus_button = Button(text='Focus', size_hint_x=None, width=100,
             on_release=self.focus_click)
@@ -74,6 +73,9 @@ class FlightStrip:
         self.right_layout.add_widget(self.focus_button)
         self.right_layout.add_widget(self.web_button)
 
+        self.update_thread = threading.Thread(target=self.server_refresh_thread, args=[flight])
+        self.update_thread.start()
+
     def __del__(self):
         dbg(f"Deleting strip {self.id}")
 
@@ -82,9 +84,11 @@ class FlightStrip:
         pass
 
     def admin_click(self, arg):
-        if self.flight.flags['Row ID'] is IN_PROGRESS:
-            self.do_server_update(self.flight)
-        if self.admin_q: self.admin_q.put(self.flight.flags['Row ID'])
+        if 'Row ID' not in self.flight.flags:
+            self.do_server_update(self.flight) # hopefully sets row id
+
+        if 'Row ID' in self.flight.flags:
+            if self.admin_q: self.admin_q.put(self.flight.flags['Row ID'])
         return
 
     def web_click(self, arg):
@@ -108,24 +112,36 @@ class FlightStrip:
 
     def do_server_update(self, flight):
         tail = flight.tail if flight.tail else flight.flight_id.strip()
-        dbg("do_server_update: "+tail)
+
+        dbg("do_server_update: " + tail)
         try:
+            # TODO could optimize: only if unregistered?
             obj = appsheet.aircraft_lookup(tail, wholeobj=True)
+            self.note_string = ""
+
             if obj:
                 flight.flags['Row ID'] = obj['Row ID']
+                self.note_string += "Arrivals=%s " % obj['Arrivals']
 
-            if not obj or (
-             (not obj['Registered online']) and (obj['IsBxA']!='Y')):
-                self.note_string = "**Unregistered A/C** "
+            if not obj:
+                self.note_string += "**unreg** "
                 self.bg_color_warn = True
             else:
+                if not test_dict(obj, 'Registered online'):
+                    if not test_dict(obj, 'IsBxA'):
+                        self.note_string += "**manual reg** "
+                        self.bg_color_warn = True
+
+            if test_dict(obj, 'IsBxA'):
+                self.note_string += "BxA"
                 self.bg_color_warn = False
-                flight.flags['Row ID'] = obj['Row ID']
-                self.note_string = "Arrivals=%s" % obj['Arrivals']
+
         except Exception:
-            del flight.flags['Row ID']
+            dbg("do_server_update parse failed")
+            pass
 
         self.set_normal()
+        self.update(flight, None, None)
         dbg("done running update_from_server " + tail)
 
     def server_refresh_thread(self, flight):
@@ -137,11 +153,8 @@ class FlightStrip:
         dbg("Exited refresh thread")
 
     def update(self, flight, location, bboxes_list):
-        if 'Row ID' not in flight.flags:
-            flight.flags['Row ID'] = IN_PROGRESS
-            self.update_thread = threading.Thread(target=self.server_refresh_thread, args=[flight])
-            self.update_thread.start()
-
+        """ Re-build strip strings, changes show up on-screen automatically """
+        # dbg(f"strip.update for {flight.tail}")
         if (flight.flight_id.strip() != flight.tail and flight.tail):
             extratail = flight.tail
         else:
@@ -149,15 +162,17 @@ class FlightStrip:
         self.top_string = "[b][size=34]%s %s[/size][/b]" % (flight.flight_id.strip(),
             extratail)
 
-        bbox_2nd_level = flight.get_bbox_at_level(1, bboxes_list)
-        # XXX hack to keep string from wrapping...not sure how to get kivy
-        # to do this
-        cliplen = 23 - len(flight.flight_id.strip()) - len(extratail)
-        if cliplen < 0: cliplen = 0
-        self.loc_string = bbox_2nd_level.name[0:cliplen] if bbox_2nd_level else ""
+        if location and bboxes_list:
+            bbox_2nd_level = flight.get_bbox_at_level(1, bboxes_list)
 
-        altchangestr = flight.get_alt_change_str(location.alt_baro)
-        self.alt_string = altchangestr + " " + str(location.alt_baro) + " " + str(int(location.gs))
+            # XXX hack to keep string from wrapping...not sure how to get kivy
+            # to do this
+            cliplen = 23 - len(flight.flight_id.strip()) - len(extratail)
+            if cliplen < 0: cliplen = 0
+            self.loc_string = bbox_2nd_level.name[0:cliplen] if bbox_2nd_level else ""
+
+            altchangestr = flight.get_alt_change_str(location.alt_baro)
+            self.alt_string = altchangestr + " " + str(location.alt_baro) + " " + str(int(location.gs))
 
         self.update_strip_text()
 
@@ -167,7 +182,7 @@ class FlightStrip:
 
     def set_normal(self):
         if self.bg_color_warn:
-            self.main_button.background_color = (.8,.4,.4)
+            self.main_button.background_color = (.8,.2,.2)
         else:
             self.main_button.background_color = (.4,.8,.4)
 
@@ -229,6 +244,7 @@ class ControllerApp(MDApp):
 
     @mainthread
     def update_strip(self, flight):
+        """ Called on bbox change. """
         new_scrollview_index = flight.inside_bboxes[0]
         id = flight.flight_id
 
@@ -293,6 +309,12 @@ class ControllerApp(MDApp):
 
 def sigint_handler(signum, frame):
     exit(1)
+
+def test_dict(d, key):
+    if not d: return False
+    if not key in d: return False
+    if d[key] == '' or d[key] == 'N': return False
+    return True
 
 def run(focus_q, admin_q):
     parser = argparse.ArgumentParser(description="match flights against kml bounding boxes")

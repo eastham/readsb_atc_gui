@@ -17,9 +17,9 @@ BODY = {
 ]
 }
 
-SEND_AIRCRAFT = False
-SEND_OPS = False
-SEND_CPES = False
+SEND_AIRCRAFT = True
+SEND_OPS = True
+SEND_CPES = True
 FAKE_KEY = "XXXfake keyXXX"  # for testing purposes
 
 class Appsheet:
@@ -34,15 +34,17 @@ class Appsheet:
 
         body = copy.deepcopy(BODY)
         body["Action"] = "Find"
-        body["Properties"]["Selector"] = "Filter(Aircraft, [Regno] = \"%s\")" % tail
-        #ppd(body)
+        body["Properties"]["Selector"] = "Select(Aircraft[Row ID], [Regno] = \"%s\")" % tail
+        ppd(body)
         try:
             if SEND_AIRCRAFT:
                 ret = self.sendop(self.config.private_vars["appsheet"]["aircraft_url"], body)
                 if ret:
-                    dbg("returning "+ ret[0]["Row ID"])
+                    dbg("lookup for tail " + tail + " lookup returning "+ ret[0]["Row ID"])
                     if wholeobj: return ret[0]
                     else: return ret[0]["Row ID"]
+                else:
+                    dbg("lookup for tail " + tail + " failed")
                 return ret
             else:
                 return FAKE_KEY
@@ -70,8 +72,8 @@ class Appsheet:
                 return ret["Rows"][0]["Row ID"]
             else:
                 return FAKE_KEY
-        except Exception:
-            log("add_aircraft op raised exception")
+        except Exception as e:
+            log("add_aircraft op raised exception: " + str(e))
 
         return None
 
@@ -188,7 +190,7 @@ class Appsheet:
             headers=self.headers, json=body, timeout=timeout)
         if response.status_code != 200:
             ppd(response)
-            raise Exception("op fail")
+            raise Exception("op returned non-200 code: "+str(response))
         # ppd(response)
         if not response.text: return None
         response_dict = json.loads(response.text)

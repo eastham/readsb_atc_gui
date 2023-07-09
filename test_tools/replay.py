@@ -16,10 +16,10 @@ import sys
 
 import readsb_parse
 
-TIME_X = 5000  # how many "x" versus real time to play back, 5000 max
-ANALYZE_LEN_SECS = 60*60*24*16
-#start_date_string = '2022-09-02 13:30:00+00:00'  # UTC
-start_date_string = '2022-08-23 13:30:00+00:00'  # UTC
+TIME_X = 30  # how many "x" versus real time to play back, 5000 max
+ANALYZE_LEN_SECS = 60*60*6
+start_date_string = '2022-09-01 13:30:00+00:00'  # UTC
+#start_date_string = '2022-08-23 13:30:00+00:00'  # UTC
 
 start_date_time = datetime.fromisoformat(start_date_string)
 # start_date_time = datetime.strptime(start_date_string, '%Y-%m-%d %H:%M:%S')  
@@ -38,7 +38,7 @@ def parse_files(files):
     for file in files:
         fd = gzip.open(file, mode="r")
         jsondict = json.loads(fd.read())
-        print(file + ": " + str(len(jsondict['trace'])) + " trace points")
+        # print(file + ": " + str(len(jsondict['trace'])) + " trace points")
         base_ts = readsb_parse.analyze(jsondict)
     return first_ts
 
