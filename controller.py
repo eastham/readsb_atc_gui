@@ -127,6 +127,15 @@ class FlightStrip:
                 self.note_string += "**unreg** "
                 self.bg_color_warn = True
             else:
+                if not test_dict(obj, 'IsBxA'):
+                    arr = obj['Arrivals']
+                    try:
+                        if int(arr) > 2:
+                            self.note_string += "**>2 arrivals** "
+                            self.bg_color_warn = True
+                    except Exception:
+                        pass
+
                 if not test_dict(obj, 'Registered online'):
                     if not test_dict(obj, 'IsBxA'):
                         self.note_string += "**manual reg** "

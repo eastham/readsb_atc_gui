@@ -57,7 +57,7 @@ def analyze(d, tp_callback=None):
 
         try:
             altint = int(alt)
-        except:
+        except Exception:
             if alt is None:
                 alt = "0"
                 altint = 0
@@ -74,7 +74,7 @@ def analyze(d, tp_callback=None):
 
         if not tail and flightdict is not None and 'flight' in flightdict:
             tail = flightdict['flight'].strip()
-            print("found tail # " + tail)
+            #print("found tail # " + tail)
 
         # add this location to allpoints
         newdict = {'now': this_ts, 'alt_baro': altint, 'gscp': gs, 'lat': lat,
@@ -102,12 +102,12 @@ def analyze(d, tp_callback=None):
             op_was_after_closing = False
 
         if airborne is True and altint < ALTTHRESH:
-            print("LANDED,%s,%s,%s,%s,%s" % (tail, op_was_after_closing, timestr(this_ts), datestr(this_ts), scenicskies))
+            #print("LANDED,%s,%s,%s,%s,%s" % (tail, op_was_after_closing, timestr(this_ts), datestr(this_ts), scenicskies))
             airborne = False
             prev_land_datetime = this_datetime
 
         if airborne is False and altint > ALTTHRESH and (this_datetime - prev_land_datetime > timedelta(minutes=TIMEGAPTHRESH)):
-            print("TAKEOFF,%s,%s,%s,%s,%s" % (tail, op_was_after_closing, timestr(this_ts), datestr(this_ts), scenicskies))
+            #print("TAKEOFF,%s,%s,%s,%s,%s" % (tail, op_was_after_closing, timestr(this_ts), datestr(this_ts), scenicskies))
             airborne = True
 
         if tp_callback:

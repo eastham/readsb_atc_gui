@@ -91,8 +91,9 @@ def main():
 
     files = locate_files(sys.argv[1], "*.json")
     parse_files(files)
+    print("Parse complete, ready to connect")
 
-    sock = Socket('127.0.0.1', int(sys.argv[2]))
+    sock = Socket('0.0.0.0', int(sys.argv[2]))
 
     # wait for first connection before starting data replay
     while True:

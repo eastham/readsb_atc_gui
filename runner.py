@@ -12,12 +12,37 @@ from config import Config
 
 RESTART_DELAY = 60 # seconds
 CONFIG = Config()
+SEND_SLACK = False
 
 process = None
 def run(cmd):
     global process
-    process = subprocess.Popen(cmd)
-    process.communicate()
+    pid = os.getpid()
+    cwd = os.getcwd()
+    fn = os.path.basename(cmd[0])
+
+    pidfn = os.path.join(cwd, f"{fn}-{pid}-pid.txt")
+    outfn = os.path.join(cwd, f"{fn}-{pid}-stdout.txt")
+    errfn = os.path.join(cwd, f"{fn}-{pid}-stderr.txt")
+    print(pidfn)
+
+    with open(outfn,"wb") as out, open(errfn,"wb") as err:
+        process = subprocess.Popen(cmd, stdout=out, stderr=err)
+
+        pid = process.pid
+        with open(pidfn, 'wt', encoding='utf-8') as pid_file:
+            pid_file.write(str(pid) + '\n')
+
+        process.communicate()
+
+    endstr = (f"***End of stdout was:\n {read_last_lines(outfn)}\n"
+             f"***End of stderr was:\n {read_last_lines(errfn)}")
+    return endstr
+
+def read_last_lines(filename, num_lines=20):
+    with open(filename, 'r') as file:
+        lines = file.readlines()
+    return lines[-num_lines:]
 
 def handle_sigint(sig, frame):
     print("CTRL-C detected, killing subprocess...")
@@ -29,17 +54,21 @@ def handle_sigint(sig, frame):
 signal.signal(signal.SIGINT, handle_sigint)
 
 def send_slack(app, msg):
-    text = f"{app} DIED, will retry in {RESTART_DELAY} seconds -- WITH MESSAGE {msg}"
-    webhook = CONFIG.private_vars['slack_webhook']
-    payload = {"text": text}
-    response = requests.post(webhook, json.dumps(payload))
-    print(response)
+    text = f"{app} DIED, will retry in {RESTART_DELAY} seconds -- {msg}"
+    print(text)
+    if SEND_SLACK:
+        webhook = CONFIG.private_vars['slack_webhook']
+        payload = {"text": text}
+        response = requests.post(webhook, json.dumps(payload))
+        print(response)
+    else:
+        print("Skipping slack send")
 
 if __name__ == "__main__":
     while True:
-        run(sys.argv[1:])
+        result = run(sys.argv[1:])
         try:
-            send_slack(str(sys.argv[1:2]), "")
+            send_slack(str(sys.argv[1:2]), result)
         except Exception as e:
             print(f"Slack logging failed: {str(e)}")
         time.sleep(RESTART_DELAY)
