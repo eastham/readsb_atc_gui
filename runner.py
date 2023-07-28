@@ -26,8 +26,8 @@ def run(cmd):
     errfn = os.path.join(cwd, f"{fn}-{pid}-stderr.txt")
     print(pidfn)
 
-    with open(outfn, "wb", flush=True) as out, open(errfn, "wb", flush=True) as err:
-        process = subprocess.Popen(cmd, stdout=out, stderr=err)
+    with open(outfn,  "wb") as out, open(errfn, "wb") as err:
+        process = subprocess.Popen(cmd, bufsize=1, stdout=out, stderr=err)
 
         pid = process.pid
         with open(pidfn, 'wt', encoding='utf-8') as pid_file:
