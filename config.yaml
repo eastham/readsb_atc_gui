@@ -1,5 +1,6 @@
 tar1090:
   host: 192.168.87.47
+  args: "?lat=40.747&lon=-119.20&zoom=12.5"
 
 admin:
   enable: true

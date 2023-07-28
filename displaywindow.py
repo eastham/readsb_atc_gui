@@ -13,8 +13,9 @@ class DisplayWindow:
         config = Config()
         self.webview_thread = threading.Thread(target=self.focus_listener)
         self.webview_thread.start()
+        conf = config.vars["tar1090"]
         self.window = webview.create_window('ADS-B display',
-            "http://%s/tar1090/" % config.vars["tar1090"]["host"])
+            "http://%s/tar1090/%s" % (conf["host"], conf["args"]))
         signal.signal(signal.SIGINT, lambda x,y: exit(1))
 
         webview.start(debug=False)
