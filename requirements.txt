@@ -1,0 +1,10 @@
+fastkml==0.12
+geopy==2.3.0
+icao_nnumber_converter_us==0.1.0
+Kivy==2.1.0
+kivymd==1.1.1
+pytz==2022.6
+pywebview==3.7.2
+PyYAML==6.0
+Requests==2.31.0
+Shapely==1.8.4

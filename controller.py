@@ -124,22 +124,25 @@ class FlightStrip:
                 self.note_string += "Arrivals=%s " % obj['Arrivals']
 
             if not obj:
-                self.note_string += "**unreg** "
+                self.note_string += "*Unreg "
                 self.bg_color_warn = True
             else:
                 if not test_dict(obj, 'IsBxA'):
                     arr = obj['Arrivals']
                     try:
                         if int(arr) > 2:
-                            self.note_string += "**>2 arrivals** "
+                            self.note_string += "* >2 arrivals "
                             self.bg_color_warn = True
                     except Exception:
                         pass
 
                 if not test_dict(obj, 'Registered online'):
                     if not test_dict(obj, 'IsBxA'):
-                        self.note_string += "**manual reg** "
+                        self.note_string += "*Manual reg "
                         self.bg_color_warn = True
+
+                if test_dict(obj, 'Related Notes'):
+                    self.note_string += "*Notes "
 
             if test_dict(obj, 'IsBxA'):
                 self.note_string += "BxA"

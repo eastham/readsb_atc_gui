@@ -4,6 +4,8 @@ import json
 import datetime
 import argparse
 import requests
+import time
+import random
 
 from config import Config
 from dbg import ppd, log, set_dbg_level, dbg
@@ -17,6 +19,7 @@ BODY = {
 ]
 }
 
+DELAYTEST = False            # for threading testing
 SEND_AIRCRAFT = True
 SEND_OPS = True
 SEND_CPES = True
@@ -185,6 +188,12 @@ class Appsheet:
     def sendop(self, url, body, timeout=30):
         log("sending to url "+url)
         response_dict = None
+
+        if DELAYTEST:
+            delay = random.uniform(1, 3)
+            log(f"delaying {delay}")
+            time.sleep(delay)
+
         response = requests.post(
             url,
             headers=self.headers, json=body, timeout=timeout)
