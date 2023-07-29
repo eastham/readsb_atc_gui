@@ -32,7 +32,7 @@ class Location:
         if not isinstance(self.lat, float): self.lat = 0
         if not isinstance(self.lon, float): self.lon = 0
         if not isinstance(self.alt_baro, int): self.alt_baro = 0
-        if not isinstance(self.gs, int): self.gs = 0
+        if not isinstance(self.gs, float): self.gs = 0
         if not isinstance(self.track, float): self.track = 0.
 
     @classmethod
@@ -45,12 +45,11 @@ class Location:
         if "hex" in d:
             tail = icao_to_n(d["hex"])
             if tail: nd["tail"] = tail
-
         return Location(**nd)
 
     def to_str(self):
-        s = "%s: %d MSL %d deg %.4f, %.4f" % (self.flight, self.alt_baro,
-            self.track, self.lat, self.lon)
+        s = "%s: %d MSL %d deg %f kts %.4f, %.4f" % (self.flight, self.alt_baro,
+            self.track, self.gs, self.lat, self.lon)
         return s
 
     def __sub__(self, other):
