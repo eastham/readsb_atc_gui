@@ -15,6 +15,8 @@ from dbg import dbg, set_dbg_level, log
 from bboxes import Bboxes
 import appsheet_api
 
+TZ_CONVERT = -7  # UTC conversion
+
 as_instance = appsheet_api.Appsheet()
 debug_stats = defaultdict(int)  # count by operation type sent to server
 
@@ -61,8 +63,8 @@ def bbox_change_cb(flight, flight_str):
     NOTED_BBOX = 'Pattern'
     FINAL_BBOX = 'Landing' # Must be in LOGGED_BBOXES.  When seen clears note about NOTED_BBOX.
 
-    utc_time = datetime.datetime.utcfromtimestamp(flight.lastloc.now)
-    log(f"*** bbox_change_cb at {utc_time}: {flight_str}")
+    local_time = datetime.datetime.fromtimestamp(flight.lastloc.now)
+    log(f"*** bbox_change_cb at {local_time}: {flight_str}")
     debug_stats["bbox_change"] += 1
 
     logged_bbox = next((b for b in LOGGED_BBOXES if b in flight_str), None)
@@ -82,7 +84,7 @@ def bbox_change_cb(flight, flight_str):
 
         aircraft_internal_id = lookup_or_create_aircraft(flight)
 
-        as_instance.add_op(aircraft_internal_id, flight.lastloc.now,
+        as_instance.add_op(aircraft_internal_id, flight.lastloc.now + TZ_CONVERT*60*60,
                             noted, logged_bbox, flight_name)
 
     if logged_bbox is FINAL_BBOX:

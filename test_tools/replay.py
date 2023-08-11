@@ -17,9 +17,9 @@ import sys
 import readsb_parse
 
 TZ_CONVERT = -7  # UTC conversion -- stored on disk as UTC but wire uses local
-TIME_X = 10  # how many "x" versus real time to play back, 5000 max
+TIME_X = 4.3  # how many "x" versus real time to play back, 5000 max
 ANALYZE_LEN_SECS = 60*60*6
-start_date_string = '2022-09-01 13:30:00+00:00'  # UTC
+start_date_string = '2022-09-01 13:20:00+00:00'  # UTC
 #start_date_string = '2022-08-23 13:30:00+00:00'  # UTC
 
 start_date_time = datetime.fromisoformat(start_date_string)

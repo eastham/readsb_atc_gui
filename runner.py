@@ -12,7 +12,7 @@ from config import Config
 
 RESTART_DELAY = 60 # seconds
 CONFIG = Config()
-SEND_SLACK = False
+SEND_SLACK = True
 
 process = None
 def run(cmd):

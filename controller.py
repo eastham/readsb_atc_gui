@@ -123,10 +123,16 @@ class FlightStrip:
                 flight.flags['Row ID'] = obj['Row ID']
                 self.note_string += "Arrivals=%s " % obj['Arrivals']
 
+            self.bg_color_warn = False
+
             if not obj:
                 self.note_string += "*Unreg "
                 self.bg_color_warn = True
             else:
+                if test_dict(obj, 'Ban'):
+                    self.note_string += "*BANNED "
+                    self.bg_color_warn = True
+
                 if not test_dict(obj, 'IsBxA'):
                     arr = obj['Arrivals']
                     try:
@@ -146,7 +152,6 @@ class FlightStrip:
 
             if test_dict(obj, 'IsBxA'):
                 self.note_string += "BxA"
-                self.bg_color_warn = False
 
         except Exception:
             dbg("do_server_update parse failed")

@@ -110,6 +110,30 @@ class Appsheet:
         ppd(body)
         ret = self.sendop(self.config.private_vars["appsheet"][url], body, timeout=None)
 
+    def delete_aircraft(self, regno):
+        allentries = self.get_all_entries("aircraft")
+        deleterows = []
+        for op in allentries:
+            if op["Regno"].lower() == regno.lower():
+                deleterows.append({"Row ID": op["Row ID"]})
+
+        dbg("delete rows are " + str(deleterows))
+
+        body = copy.deepcopy(BODY)
+        body["Action"] = "Delete"
+        body["Rows"] = deleterows
+        url = "aircraft" + "_url"
+        ppd(body)
+        ret = self.sendop(self.config.private_vars["appsheet"][url], body, timeout=None)
+
+    def add_aircraft_from_file(self, fn):
+        with open(fn, 'r') as file:
+            for line in file:
+                line = line.strip()
+                if line[0] == 'N':
+                    print(f"adding {line}")
+                    self.add_aircraft(line)
+
     def add_op(self, aircraft, time, scenic, optype, flight_name):
         log("add_op %s %s" % (aircraft, optype))
         optime = datetime.datetime.fromtimestamp(time)
@@ -220,10 +244,18 @@ if __name__ == "__main__":
     parser.add_argument("--delete_all_aircraft", action="store_true")
     parser.add_argument("--delete_all_abes", action="store_true")
     parser.add_argument("--delete_all_notes", action="store_true")
+    parser.add_argument("--add_aircraft", help="add all aircraft listed in file, one per line")
+    parser.add_argument("--delete_aircraft", help="delete all copies of argument aircraft")
 
     args = parser.parse_args()
 
     if args.get_all_ops: print(as_instance.get_all_ops())
+    if args.delete_aircraft:
+        confirm = input("Deleting all copies of aircraft. Are you sure? (y/n): ")
+        if confirm.lower() == 'y':
+            as_instance.delete_aircraft(args.delete_aircraft)
+    if args.add_aircraft:
+        as_instance.add_aircraft_from_file(args.add_aircraft)
     if args.delete_all_ops:
         confirm = input("Deleting all ops. Are you sure? (y/n): ")
         if confirm.lower() == 'y':
