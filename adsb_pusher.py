@@ -15,7 +15,7 @@ from dbg import dbg, set_dbg_level, log
 from bboxes import Bboxes
 import appsheet_api
 
-TZ_CONVERT = -7  # UTC conversion
+TZ_CONVERT = 0 # -7  # UTC conversion
 
 as_instance = appsheet_api.Appsheet()
 debug_stats = defaultdict(int)  # count by operation type sent to server
