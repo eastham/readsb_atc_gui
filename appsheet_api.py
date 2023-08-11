@@ -130,7 +130,7 @@ class Appsheet:
         with open(fn, 'r') as file:
             for line in file:
                 line = line.strip()
-                if line[0] == 'N':
+                if line and line[0] == 'N':
                     print(f"adding {line}")
                     self.add_aircraft(line)
 
