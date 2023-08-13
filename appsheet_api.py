@@ -129,8 +129,8 @@ class Appsheet:
     def add_aircraft_from_file(self, fn):
         with open(fn, 'r') as file:
             for line in file:
-                line = line.strip()
-                if line and line[0] == 'N':
+                line = line.strip().upper()
+                if line and (line[0] == 'N' or line[0] == 'C'):
                     print(f"adding {line}")
                     self.add_aircraft(line)
 

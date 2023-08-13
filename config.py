@@ -13,5 +13,5 @@ class Config:
         try:
             with open(PRIVPATH, "r") as f:
                 self.private_vars = yaml.safe_load(f)
-        except:
-            print("No private.yaml found.")
+        except Exception as e:
+            print("No private.yaml found, or parse fail: " +str(e))
