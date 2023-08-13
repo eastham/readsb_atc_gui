@@ -63,15 +63,16 @@ def api_read_loop(bbox_list, bbox_cb):
             "X-RapidAPI-Host": "adsbexchange-com1.p.rapidapi.com"
         }
 
-        response = requests.get(CONFIG.private_vars['absbx_url'], headers=headers)
+        response = requests.get(CONFIG.private_vars['adsbx_url'], headers=headers)
         jsondict = response.json()
         print(jsondict)
-
-        for ac in jsondict['ac']:
-            loc_update = Location.from_dict(ac)
-            print(loc_update)
-            flights.add_location(loc_update, None, None, bbox_cb)
-
+        try:
+            for ac in jsondict['ac']:
+                loc_update = Location.from_dict(ac)
+                print(loc_update)
+                flights.add_location(loc_update, None, None, bbox_cb)
+        except Exception as e:
+            print("api error "+str(e))
         print("Sleeping ")
         time.sleep(API_LOOP_DELAY)
 
