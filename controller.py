@@ -199,9 +199,11 @@ class FlightStrip:
 
     def set_normal(self):
         if self.bg_color_warn:
-            self.main_button.background_color = (.8,.2,.2)
+            self.main_button.background_normal = ''
+            self.main_button.background_color = (1,0,0)
         else:
-            self.main_button.background_color = (.4,.8,.4)
+            self.main_button.background_normal = ''
+            self.main_button.background_color = (0,.7,0)
 
     def unrender(self):
         self.get_scrollview().remove_widget(self.layout)
