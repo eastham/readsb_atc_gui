@@ -17,10 +17,11 @@ import sys
 import readsb_parse
 
 TZ_CONVERT = -7  # UTC conversion -- stored on disk as UTC but wire uses local
-TIME_X =  4.3  # how many "x" versus real time to play back, 5000 max
-ANALYZE_LEN_SECS = 60*60*6
-#start_date_string = '2022-09-01 16:20:00+00:00'  # UTC
-start_date_string = '2022-09-01 13:20:00+00:00'  # UTC
+TIME_X = 30000 #1000 # 4.3  # how many "x" versus real time to play back, 0 to replay at max speed
+ANALYZE_LEN_SECS = 17 * 60*60*24 # full event
+start_date_string = '2023-08-20 16:00:00+00:00'  # UTC
+#start_date_string = '2023-08-28 16:00:00+00:00'  # UTC
+#start_date_string = '2023-08-24 17:40:00+00:00'  # UTC
 
 start_date_time = datetime.fromisoformat(start_date_string)
 # start_date_time = datetime.strptime(start_date_string, '%Y-%m-%d %H:%M:%S')  
@@ -37,9 +38,14 @@ def locate_files(directory, pattern):
 
 def parse_files(files):
     for file in files:
+        # print(file)
         fd = gzip.open(file, mode="r")
-        jsondict = json.loads(fd.read())
-        # print(file + ": " + str(len(jsondict['trace'])) + " trace points")
+        try:
+            jsondict = json.loads(fd.read())
+        except Exception as e:
+            print("failed to parse " + file)
+            raise e
+        # print(str(len(jsondict['trace'])) + " trace points")
         base_ts = readsb_parse.analyze(jsondict)
     return first_ts
 
@@ -125,6 +131,7 @@ def main():
             d['now'] += TZ_CONVERT*60*60  # convert to local time
             string = json.dumps(d) + "\n"
             buffer = bytes(string, 'ascii')
+            #print(buffer)
             sock.sendall(buffer)
             update_ctr += 1
             print(".", end="", flush=True)

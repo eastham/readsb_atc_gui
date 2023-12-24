@@ -4,6 +4,7 @@ import json
 import signal
 import datetime
 import sys
+import time
 from typing import Dict
 
 from test import test_insert, tests_enable, run_test
@@ -15,7 +16,7 @@ class Flights:
     """all Flight objects in the system, indexed by flight_id"""
     flight_dict: Dict[str, Flight] = {}
     lock: threading.Lock = threading.Lock()
-    EXPIRE_SECS: int = 60
+    EXPIRE_SECS: int = 180  # 3 minutes emperically needed to debounce poor-signal airplanes
 
     def __init__(self, bboxes):
         self.bboxes = bboxes
@@ -104,10 +105,12 @@ class Flights:
 
 
 class TCPConnection:
-    def __init__(self, host, port):
+    def __init__(self, host, port, retry, exit_cb):
         self.host = host
         self.port = port
         self.sock = None
+        self.retry = retry
+        self.exit_cb = exit_cb
         self.f = None
 
     def connect(self):
@@ -116,10 +119,8 @@ class TCPConnection:
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.sock.connect((self.host, self.port))
             print('Successful Connection')
-        except Exception:
-            print('Connection Failed')
-            sys.exit(1)
-            raise
+        except Exception as e:
+            print('Connection Failed: '+str(e))
 
         self.f = self.sock.makefile()
 
@@ -129,11 +130,11 @@ class TCPConnection:
 def sigint_handler(signum, frame):
     sys.exit(1)
 
-def setup(ipaddr, port):
+def setup(ipaddr, port, retry_conn=True, exit_cb=None):
     print("Connecting to %s:%d" % (ipaddr, int(port)))
 
     signal.signal(signal.SIGINT, sigint_handler)
-    conn = TCPConnection(ipaddr, int(port))
+    conn = TCPConnection(ipaddr, int(port), retry_conn, exit_cb)
     conn.connect()
 
     dbg("Setup done")
@@ -144,8 +145,14 @@ def flight_update_read(flights, listen, update_cb, bbox_change_cb):
         line = listen.readline()
         jsondict = json.loads(line)
     except Exception:
-        print("Socket input/parse error, attempting to reconnect...")
-        listen.connect()
+        print(f"Socket input/parse error, reconnect plan = {listen.retry}")
+        if listen.retry:
+            time.sleep(2)
+            listen.connect()
+        else:
+            if listen.exit_cb:
+                listen.exit_cb()
+            sys.exit(1)
         return
     #ppdbg(jsondict)
 
@@ -153,7 +160,9 @@ def flight_update_read(flights, listen, update_cb, bbox_change_cb):
     last_ts = flights.add_location(loc_update, update_cb, update_cb, bbox_change_cb)
     return last_ts
 
-def flight_read_loop(listen, bbox_list, update_cb, expire_cb, annotate_cb, bbox_change_cb, test_cb=None):
+def flight_read_loop(listen, bbox_list, update_cb, expire_cb, annotate_cb, bbox_change_cb, 
+                     test_cb=None):
+
     CHECKPOINT_INTERVAL = 10 # seconds
     last_checkpoint = 0
     TEST_INTERVAL = 60*60 # run test every this many seconds

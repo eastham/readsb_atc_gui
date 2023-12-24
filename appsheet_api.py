@@ -20,9 +20,10 @@ BODY = {
 }
 
 DELAYTEST = False            # for threading testing
-SEND_AIRCRAFT = True
-SEND_OPS = True
-SEND_CPES = True
+SEND_AIRCRAFT = False
+LOOKUP_AIRCRAFT = False
+SEND_OPS = False
+SEND_CPES = False
 FAKE_KEY = "XXXfake keyXXX"  # for testing purposes
 
 class Appsheet:
@@ -33,14 +34,14 @@ class Appsheet:
 
     def aircraft_lookup(self, tail, wholeobj=False):
         """return appsheet internal ID for this tail number """
-        log("aircraft_lookup %s" % (tail))
+        dbg("aircraft_lookup %s" % (tail))
 
         body = copy.deepcopy(BODY)
         body["Action"] = "Find"
         body["Properties"]["Selector"] = "Select(Aircraft[Row ID], [Regno] = \"%s\")" % tail
-        ppd(body)
+        # ppd(body)
         try:
-            if SEND_AIRCRAFT:
+            if LOOKUP_AIRCRAFT:
                 ret = self.sendop(self.config.private_vars["appsheet"]["aircraft_url"], body)
                 if ret:
                     dbg("lookup for tail " + tail + " lookup returning "+ ret[0]["Row ID"])
@@ -58,7 +59,7 @@ class Appsheet:
 
     def add_aircraft(self, regno, test=False, description=""):
         """Create aircraft in appsheet"""
-        log("add_aircraft %s" % (regno))
+        dbg("add_aircraft %s" % (regno))
 
         body = copy.deepcopy(BODY)
         body["Action"] = "Add"
@@ -81,7 +82,7 @@ class Appsheet:
         return None
 
     def get_all_entries(self, table):
-        log("get_all_entries " + table)
+        dbg("get_all_entries " + table)
 
         body = copy.deepcopy(BODY)
         body["Action"] = "Find"
@@ -135,7 +136,7 @@ class Appsheet:
                     self.add_aircraft(line)
 
     def add_op(self, aircraft, time, scenic, optype, flight_name):
-        log("add_op %s %s" % (aircraft, optype))
+        dbg("add_op %s %s" % (aircraft, optype))
         optime = datetime.datetime.fromtimestamp(time)
 
         body = copy.deepcopy(BODY)
@@ -159,7 +160,8 @@ class Appsheet:
 
         return None
 
-    def add_cpe(self, flight1, flight2, latdist, altdist, time):
+    def add_cpe(self, flight1, flight2, latdist, altdist, time, lat, long):
+        # XXX needs test w/ lat /long addition
         log("add_cpe %s %s" % (flight1, flight2))
         optime = datetime.datetime.fromtimestamp(time)
 
@@ -170,7 +172,9 @@ class Appsheet:
             "Aircraft2": flight2,
             "Time": optime.strftime("%m/%d/%Y %H:%M:%S"),
             "Min alt sep": altdist,
-            "Min lat sep": latdist*6076
+            "Min lat sep": latdist*6076,
+            "lat": lat,
+            "long": long
         }]
         #ppd(body)
         try:

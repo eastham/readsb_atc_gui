@@ -82,6 +82,9 @@ class Flight:
         self.inside_bboxes = [-1] * len(self.bboxes_list)
 
     def to_str(self):
+        """
+        String representation includes lat/long and bbox list
+        """
         string = self.lastloc.to_str()
         bbox_name_list = []
         for i, bboxes in enumerate(self.bboxes_list):
@@ -130,7 +133,11 @@ class Flight:
         self.lastloc = loc
 
     def update_inside_bboxes(self, bbox_list, loc, change_cb):
+        """
+        Array indices in here are all per kml file.
+        """
         changes = False
+        old_str = self.to_str()
         for i, bbox in enumerate(bbox_list):
             new_bbox = bbox_list[i].contains(loc.lat, loc.lon, loc.track, loc.alt_baro)
             if self.inside_bboxes[i] != new_bbox:
@@ -143,7 +150,7 @@ class Flight:
             tail = self.tail if self.tail else "(unk)"
             log(tail + " Flight bbox change at " + flighttime.strftime("%H:%M") +
                 ": " + self.to_str())
-            if change_cb: change_cb(self, self.to_str())
+            if change_cb: change_cb(self, self.to_str(), old_str)
 
     def get_bbox_at_level(self, level, bboxes_list):
         inside_n = self.inside_bboxes[level]

@@ -2,6 +2,8 @@
 """
 Accept traffic over a port from readsb and push relevant flights to
 an appsheet app.
+
+TODO: write large tests, maybe using debug_stats, combine adsb_alerter.py functionality?
 """
 
 from collections import defaultdict
@@ -48,12 +50,63 @@ def lookup_or_create_aircraft(flight):
 
     return flight.external_id
 
-def bbox_start_change_cb(flight, flight_str):
+def bbox_start_change_cb(flight, flight_str, prev_flight_str):
     dbg("*** bbox_start_change_cb "+flight_str)
-    t = threading.Thread(target=bbox_change_cb, args=[flight, flight_str])
+    t = threading.Thread(target=alt_bbox_change_cb, args=[flight, flight_str, 
+                                                          prev_flight_str])
     t.start()
 
-def bbox_change_cb(flight, flight_str):
+def alt_bbox_change_cb(flight, current_str, old_str):
+    """
+    Different approach: try to catch the transition from ground to air and vice versa.
+    This addresses the problem of aircraft that aren't reliably received, especially when 
+    they're low to the ground.
+    This also allows us to catch "popups" that suddenly appear in flight near the airport.
+
+    Bounding boxes: larger air box, small ground box. ground first in list so takes priority
+
+    Empirically this seems to work pretty well, however I do see a few a/c that
+    have a single ground ping but then are classified as a popup.  manually checked
+    about 20 popups, 18 looked good
+
+    Scenics: check if we saw a local takeoff.  This will also count medevac goarounds tho
+    """
+    SAW_TAKEOFF = 'saw_takeoff'  # tracks scenic flights
+
+    flight_id = flight.tail
+    flight_name = flight.flight_id.strip()
+    if not flight_id:
+        flight_id = flight_name
+
+    op = None
+    note_string = ''
+
+    if "Ground" in old_str and "Air" in current_str:
+        op = 'Takeoff'
+        flight.flags[SAW_TAKEOFF] = True
+
+    if "Ground" in current_str and "Air" in old_str:
+        op = 'Landing'
+        if SAW_TAKEOFF in flight.flags:
+            note_string += ' Scenic'
+
+    if "Air" in current_str and not "Vicinity" in old_str and not 'Ground' in old_str:
+        op = 'Takeoff'
+        note_string += " Popup"
+        flight.flags[SAW_TAKEOFF] = True
+        # XXX more handling for a/c that go silent for a while? > 60s expire?  saw a few
+
+    if op:
+        flighttime = datetime.datetime.fromtimestamp(flight.lastloc.now +  7*60*60)
+        print(f"Got op {op} {flight_name} at {flighttime.strftime('%H:%M %d')}{note_string}")
+        debug_stats[op] += 1
+        aircraft_internal_id = lookup_or_create_aircraft(flight)
+
+        as_instance.add_op(aircraft_internal_id, flight.lastloc.now + TZ_CONVERT*60*60,
+            SAW_TAKEOFF in flight.flags, op, flight_name)
+
+
+def bbox_change_cb(flight, flight_str, old_bboxes):
     """
     Called on all bbox changes, but only log to appsheet when LOGGED_BBOXES are entered.
     Also take note and log it later if NOTED_BBOX is seen.
@@ -64,7 +117,7 @@ def bbox_change_cb(flight, flight_str):
     FINAL_BBOX = 'Landing' # Must be in LOGGED_BBOXES.  When seen clears note about NOTED_BBOX.
 
     local_time = datetime.datetime.fromtimestamp(flight.lastloc.now)
-    log(f"*** bbox_change_cb at {local_time}: {flight_str}")
+    dbg(f"*** bbox_change_cb at {local_time}: {flight_str}")
     debug_stats["bbox_change"] += 1
 
     logged_bbox = next((b for b in LOGGED_BBOXES if b in flight_str), None)
@@ -80,11 +133,11 @@ def bbox_change_cb(flight, flight_str):
     if logged_bbox:
         debug_stats[logged_bbox] += 1
         noted = NOTED_BBOX in flight.flags
-        dbg("adsb_pusher adding " + logged_bbox + " with note " + str(noted))
+        log(f"***** {flight_id},{logged_bbox},{str(noted)}")
 
         aircraft_internal_id = lookup_or_create_aircraft(flight)
 
-        as_instance.add_op(aircraft_internal_id, flight.lastloc.now + TZ_CONVERT*60*60,
+        as_instance.add_op(aircraft_internal_id, flight.lastloc.now + 7*60*60, # XXX TZ
                             noted, logged_bbox, flight_name)
 
     if logged_bbox is FINAL_BBOX:
@@ -164,7 +217,7 @@ def cpe_cb(flight1, flight2, latdist, altdist):
         flight2_internal_id = lookup_or_create_aircraft(cpe.flight2)
 
         cpe.id = as_instance.add_cpe(flight1_internal_id, flight2_internal_id,
-            latdist, altdist, now)
+            latdist, altdist, now, flight1.lastloc.lat, flight1.lastloc.lon)
 
 def gc_loop():
     while True:
@@ -197,6 +250,7 @@ def cpe_gc():
 
 
 def test_cb():
+    print("starting thread")
     t = threading.Thread(target=test_cb_body)
     t.start()
 
@@ -234,7 +288,7 @@ if __name__ == "__main__":
     for f in args.file:
         bboxes_list.append(Bboxes(f))
 
-    listen = adsb_receiver.setup(args.ipaddr, args.port)
+    listen = adsb_receiver.setup(args.ipaddr, args.port, retry_conn=False, exit_cb=print_stats)
 
     adsb_receiver.flight_read_loop(listen, bboxes_list, None, None,
         cpe_start_cb, bbox_start_change_cb, test_cb=test_cb)

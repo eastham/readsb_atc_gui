@@ -11,6 +11,7 @@ pp = pprint.PrettyPrinter(indent=4)
 
 @dataclass
 class Bbox:
+    """A single bounding box defined by a polygon, altitude range, and heading range."""
     polygon: Polygon
     minalt: int
     maxalt: int
@@ -19,6 +20,13 @@ class Bbox:
     name: str
 
 class Bboxes:
+    """
+    A collection of Bbox objects, defined by a KML file with polygons inside.
+    Each polygon should have a name formatted like this in the KML: 
+        name: minalt-maxalt minhdg-maxhdg
+    For example:
+        RHV apporach: 500-1500 280-320
+    """
     def __init__(self, fn):
         self.boxes = []    # list of Bbox objects
 
@@ -68,6 +76,6 @@ class Bboxes:
         for i, box in enumerate(self.boxes):
             if (box.polygon.contains(Point(long,lat)) and
                 self.hdg_contains(hdg, box.starthdg, box.endhdg)):
-                if (alt > box.minalt and alt < box.maxalt):
+                if (alt >= box.minalt and alt <= box.maxalt):
                     return i
         return -1

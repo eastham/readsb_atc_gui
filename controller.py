@@ -138,7 +138,6 @@ class FlightStrip:
                     try:
                         if int(arr) > 2:
                             self.note_string += "* >2 arrivals "
-                            self.bg_color_warn = True
                     except Exception:
                         pass
 
