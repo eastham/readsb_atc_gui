@@ -56,14 +56,13 @@ def bbox_change_cb(flight, flight_str):
 
 def api_read_loop(bbox_list, bbox_cb):
     flights = Flights(bbox_list)
+    headers = {
+        "X-RapidAPI-Key": CONFIG.private_vars['rapid_api_key'],
+        "X-RapidAPI-Host": "adsbexchange-com1.p.rapidapi.com"
+    }
 
     while True:
-        headers = {
-            "X-RapidAPI-Key": CONFIG.private_vars['rapid_api_key'],
-            "X-RapidAPI-Host": "adsbexchange-com1.p.rapidapi.com"
-        }
-
-        response = requests.get(CONFIG.private_vars['adsbx_url'], headers=headers)
+        response = requests.get(CONFIG.private_vars['adsbx_url'], headers=headers, timeout=20)
         jsondict = response.json()
         print(jsondict)
         try:
@@ -72,7 +71,8 @@ def api_read_loop(bbox_list, bbox_cb):
                 print(loc_update)
                 flights.add_location(loc_update, None, None, bbox_cb)
         except Exception as e:
-            print("api error "+str(e))
+            print("api error: " + str(e))
+
         print("Sleeping ")
         time.sleep(API_LOOP_DELAY)
 
@@ -85,9 +85,9 @@ if __name__ == "__main__":
     parser.add_argument("-d", "--debug", action="store_true")
     parser.add_argument('file', nargs='+', help="kml files to use")
     parser.add_argument('--ipaddr', help="IP address to connect to")
-    parser.add_argument('--port', help="port to connect to"
-                        )
-    parser.add_argument('--api', action='store_true', help="use web api instead of direct connect IP")
+    parser.add_argument('--port', help="port to connect to")
+    parser.add_argument('--api', action='store_true',
+                        help="use web api instead of direct connect IP")
     args = parser.parse_args()
 
     if args.debug: set_dbg_level(2)
